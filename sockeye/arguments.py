@@ -410,6 +410,7 @@ def add_prepare_data_cli_args(params):
     add_training_data_args(params, required=True)
     add_vocab_args(params)
     add_bucketing_args(params)
+    add_src_factor_vocab_args(params)
 
     params.add_argument('--num-samples-per-shard',
                         type=int_greater_or_equal(1),
@@ -487,6 +488,16 @@ def add_vocab_args(params):
                         type=int,
                         default=None,
                         help='Pad vocabulary to a multiple of this integer. Default: %(default)s.')
+
+
+def add_src_factor_vocab_args(params):
+    params.add_argument('--source-factor-vocabularies', '-vsfv',
+                        required=False,
+                        nargs='+',
+                        type=regular_file(),
+                        default=[],
+                        help='File(s) containing additional token-parallel validation source side factors. '
+                             'Default: %(default)s.')
 
 
 def add_model_parameters(params):

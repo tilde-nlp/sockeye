@@ -47,8 +47,8 @@ def prepare_data(args: argparse.Namespace):
 
     source_paths = [args.source] + args.source_factors
     # NOTE: Pre-existing source factor vocabularies not yet supported for prepare data
-    source_factor_vocab_paths = [None] * len(args.source_factors)
-    source_vocab_paths = [args.source_vocab] + source_factor_vocab_paths
+    # source_factor_vocab_paths = [None] * len(args.source_factors)
+    source_vocab_paths = [args.source_vocab] + args.source_factor_vocabularies  # source_factor_vocab_paths
 
     num_words_source, num_words_target = args.num_words
     num_words_source = num_words_source if num_words_source > 0 else None
