@@ -1094,6 +1094,8 @@ def get_stdin_training_data_iters(source_vocabs,
     average_len_target_per_bucket= [69],
     length_ratio_stats_per_bucket = None)
 
+    data_statistics.log(bucket_batch_sizes)
+
     config_data = DataConfig(data_statistics=data_statistics,
                              max_seq_len_source=1337,
                              max_seq_len_target=1337,
