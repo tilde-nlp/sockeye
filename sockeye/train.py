@@ -359,6 +359,43 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
 
         return train_iter, validation_iter, data_config, data_info, source_vocabs, target_vocabs
 
+    elif args.stdin_input:
+        source_factor_vocab_paths = [args.source_factor_vocabs[i] if i < len(args.source_factor_vocabs)
+                                     else None for i in range(len(args.source_factors))]
+        source_vocab_paths = [args.source_vocab] + source_factor_vocab_paths
+        target_factor_vocab_paths = [args.target_factor_vocabs[i] if i < len(args.target_factor_vocabs)
+                                     else None for i in range(len(args.target_factors))]
+        target_vocab_paths = [args.target_vocab] + target_factor_vocab_paths
+        for vocab_path in source_vocab_paths:
+            if vocab_path is None:
+                raise ValueError('If training from stdin, source and all source factors require vocabularies. ')
+                #Oughta add instruction to define vocabularies.
+        for vocab_path in target_vocab_paths:
+            if vocab_path is None:
+                raise ValueError('If training from stdin, target and all target factors require vocabularies. ')
+
+        source_vocabs = [vocab.vocab_from_json(vocab_path) for vocab_path in source_vocab_paths]
+        target_vocabs = [vocab.vocab_from_json(vocab_path) for vocab_path in target_vocab_paths]
+
+        #Oughta add like shared vocab shit.
+        pass
+        #Oughta add like vocab loading if resuming training.
+        pass
+
+        train_iter, validation_iter, config_data, data_info = data_io.get_stdin_training_data_iters(source_vocabs,
+                                                                                                    target_vocabs,
+                                                                                                    args.batch_size,
+                                                                                                    validation_sources,
+                                                                                                    validation_targets)
+
+
+
+        data_info_fname = os.path.join(output_folder, C.DATA_INFO)
+        logger.info("Writing data config to '%s'", data_info_fname)
+        data_info.save(data_info_fname)
+
+        return train_iter, validation_iter, config_data, data_info, source_vocabs, target_vocabs
+
     else:
         utils.check_condition(args.prepared_data is None and args.source is not None and args.target is not None,
                               either_raw_or_prepared_error_msg)

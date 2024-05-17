@@ -518,6 +518,10 @@ def add_bucketing_args(params):
                         action='store_true',
                         help='Disable bucketing: always unroll the graph to --max-seq-len. Default: %(default)s.')
 
+    params.add_argument('--stdin-input',
+                        action='store_true',
+                        help='Whether to read input from stdin.')
+
     params.add_argument('--bucket-width',
                         type=int_greater_or_equal(1),
                         default=8,

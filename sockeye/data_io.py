@@ -1040,6 +1040,69 @@ def get_prepared_data_iters(prepared_data_dir: str,
     return train_iter, validation_iter, config_data, data_info, source_vocabs, target_vocabs
 
 
+def get_stdin_training_data_iters(source_vocabs,
+                                  target_vocabs,
+                                  batch_size,
+                                  validation_sources,
+                                  validation_targets,
+                                  dtype='int32'):
+
+    #Oughta add like type annotations everywhere.
+    pass
+
+    train_iter = StdInParallelSampleIter(source_vocabs=source_vocabs,
+                                         target_vocabs=target_vocabs,
+                                         batch_size=batch_size,
+                                         num_source_factors=len(source_vocabs),
+                                         num_target_factors=len(target_vocabs),
+                                         dtype='int32')
+
+    #Oughta rename variables so their names make sense with the data type.
+
+    data_info = DataInfo(sources=[],
+                         targets=[],
+                         source_vocabs=source_vocabs,
+                         target_vocabs=target_vocabs,
+                         shared_vocab=False,
+                         num_shards=1)
+
+    config_data = DataConfig(data_statistics=data_statistics,
+                             max_seq_len_source=1337,
+                             max_seq_len_target=1337,
+                             num_source_factors=len(source_vocabs),
+                             num_target_factors=len(target_vocabs),
+                             eop_id=C.EOS_ID)
+
+    buckets = [(100, 100)]
+    #Prolly oughta make this bucketting algo smarter.
+    pass
+
+    bucket_batch_sizes = define_bucket_batch_sizes(buckets,
+                                                   5,
+                                                   C.BATCH_TYPE_MAX_WORD,
+                                                   [None],
+                                                   1)
+
+    data_loader = RawParallelDatasetLoader(buckets=buckets,
+                                           eos_id=C.EOS_ID,
+                                           pad_id=C.PAD_ID)
+
+    validation_iter = get_validation_data_iter(data_loader=data_loader,
+                                               validation_sources=validation_sources,
+                                               validation_targets=validation_targets,
+                                               buckets=buckets,
+                                               bucket_batch_sizes=bucket_batch_sizes,
+                                               source_vocabs=source_vocabs,
+                                               target_vocabs=target_vocabs,
+                                               max_seq_len_source=buckets[0][1],
+                                               max_seq_len_target=buckets[0][0],
+                                               batch_size=batch_size,
+                                               permute=False)
+
+
+    return train_iter, validation_iter, config_data, data_info
+
+
 def get_training_data_iters(sources: List[str],
                             targets: List[str],
                             validation_sources: List[str],
@@ -1961,6 +2024,123 @@ class BaseParallelSampleIter:
     def load_state(self, fname: str):
         pass
 
+import json
+class StdInParallelSampleIter(BaseParallelSampleIter):
+    def __init__(self,
+                 source_vocabs: List[vocab.Vocab],
+                 target_vocabs: List[vocab.Vocab],
+                 batch_size: int,
+                 shift_target_factors: bool = C.TARGET_FACTOR_SHIFT,
+                 num_source_factors: int = 1,
+                 num_target_factors: int = 1,
+                 dtype='int32') -> None:
+        self.shift_target_factors = shift_target_factors
+        self.batch_size = batch_size
+        self.num_target_factors = num_target_factors
+        self.num_source_factors = num_source_factors
+        self.source_vocabs = source_vocabs
+        self.target_vocabs = target_vocabs
+        self.dtype = dtype
+
+    def __iter__(self):
+        return self
+
+    def reset(self):
+        #Doesn't apply.
+        pass
+
+    def iter_next(self) -> bool:
+        return True
+
+    def next(self) -> 'Batch':
+        if utils.is_distributed():
+            batch_count = torch.distributed.get_world_size()
+        else:
+            batch_count = 1
+
+        if utils.is_primary_worker():
+            batches = []
+            for batch_idx in range(batch_count):
+                sources = []
+                targets = []
+                source_lengths = []
+                target_lengths = []
+                alignment_matrices = []
+                for _ in range(self.batch_size):
+                    inp = json.loads(input())
+                    am = parse_alignment_matrix_indices(inp['alignment_matrix'])
+                    alignment_matrices.append(am)
+
+                    src = inp['sources']
+                    src = [tokens2ids(s[factor_idx].split(' '), self.source_vocabs[factor_idx]) for factor_idx, s in enumerate(src)]
+                    sources.append(src)
+                    source_lengths.append(len(src[0]))
+
+                    trg = inp['targets']
+                    trg = [tokens2ids(t[factor_idx].split(' '), self.target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
+                    targets.append(trg)
+                    target_lengths.append(len(trg[0]))
+
+                    sources.append(src)
+                    targets.append(trg)
+
+                max_source_length = np.array(source_lengths).max()
+                max_target_length = np.array(target_lengths).max()
+
+                bucket_size = (max_target_length + 1, max_source_length)
+
+                alignment_matrices = [create_alignment_matrix(am, bucket_size) for am in alignment_matrices]
+                alignment_matrices = torch.stack(alignment_matrices, dim=0)
+                alignment_matrices = alignment_matrices.to_sparse_csr()
+
+                source_factor_count = len(sources[0])
+                target_factor_count = len(targets[0])
+
+                #Gotta figure out what pad_id's supposed to be.
+                sources_np = np.full([self.batch_size, max_source_length, source_factor_count], C.PAD_ID, dtype=self.dtype)
+                targets_np = np.full([self.batch_size, max_target_length, target_factor_count], C.PAD_ID, dtype=self.dtype)
+                for sample_idx in range(self.batch_size):
+                    for source_factor_idx in range(source_factor_count):
+                        s = sources[sample_idx][source_factor_idx]
+                        sources_np[sample_idx, source_factor_idx, 0:len(s)] = s
+                    for target_factor_idx in range(target_factor_count):
+                        t = targets[sample_idx][target_factor_idx]
+                        if target_factor_idx == 0 or self.shift_target_factors:
+                            t.insert(0, C.BOS_ID)
+                        else:
+                            t.append(C.EOS_ID)
+                        targets_np[sample_idx][target_factor_idx, 0:len(t)] = t
+
+                sources_tens = torch.tensor(sources_np)
+                targets_tens = torch.tensor(targets_np)
+
+                targets_tens, labels = create_target_and_shifted_label_sequences(targets_tens)
+
+                #Gotta figure out prep_len.
+                pass #Eh fuck this for now
+
+                batches.append(create_batch_from_parallel_sample(sources_tens,
+                                                                 targets_tens,
+                                                                 label=labels,
+                                                                 prepended_source_length=None,
+                                                                 alignment_matrix=alignment_matrices))
+        else:
+            batches = [None for _ in range(torch.distributed.get_world_size())]
+
+        utils.broadcast_object(batches)
+
+        return batches[torch.distributed.get_rank()]
+
+    def __next__(self):
+        return self.next()  # pylint: disable=not-callable
+
+    def save_state(self, fname: str):
+        #Doesn't apply.
+        pass
+
+    def load_state(self, fname: str):
+        #Doesn't apply.
+        pass
 
 class BatchedRawParallelSampleIter(BaseParallelSampleIter):
     """
