@@ -1000,6 +1000,7 @@ class BeamSearch(Search):
                 target_prefix_factors, self.output_factor_vocab_size, self.dtype)
             target_prefix_factor_masks = target_prefix_factor_masks.unsqueeze(2).expand(-1, -1, self.beam_size, -1, -1)
 
+        print(max_iterations)
         t = 1
         for t in range(1, max_iterations + 1):  # max_iterations + 1 required to get correct results
             # (1) obtain next predictions and advance models' state
@@ -1097,6 +1098,7 @@ class BeamSearch(Search):
 
         best_hyp_indices_list.append(best_hyp_indices)
         lengths = lengths.index_select(0, best_hyp_indices)
+        print(attentions)
         if attentions is not None:
             stacked_attentions = pt.cat(attentions, dim=1)
         else:

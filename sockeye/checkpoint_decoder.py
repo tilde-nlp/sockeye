@@ -219,8 +219,6 @@ class CheckpointDecoder:
         original_mode = self.model.training
         self.model.eval()
         one_sentence = [inference.make_input_from_multiple_strings(0, self.inputs_sentences[0])]
-        print(one_sentence)
-        print('UAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
         _ = self.translator.translate(one_sentence)
         self.model.train(original_mode)
 
