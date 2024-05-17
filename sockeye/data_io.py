@@ -1074,7 +1074,7 @@ def get_stdin_training_data_iters(source_vocabs,
     bucket_batch_sizes = define_bucket_batch_sizes(buckets,
                                                    batch_size,
                                                    C.BATCH_TYPE_MAX_WORD,
-                                                   [None],
+                                                   [69],
                                                    1)
 
     data_statistics = DataStatistics(num_sents= 69,
