@@ -293,7 +293,7 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
     if utils.is_distributed():
         error_msg = 'Distributed training requires prepared training data. Use `python -m sockeye.prepare_data` and ' \
                     'specify with %s' % C.TRAINING_ARG_PREPARED_DATA
-        check_condition(args.prepared_data is not None, error_msg)
+        check_condition(args.prepared_data is not None or args.stdin_input, error_msg)
     either_raw_or_prepared_error_msg = "Either specify a raw training corpus with %s and %s and optional %s or a " \
                                        "preprocessed corpus with %s." % \
                                        (C.TRAINING_ARG_SOURCE,
