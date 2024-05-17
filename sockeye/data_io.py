@@ -1087,7 +1087,7 @@ def get_stdin_training_data_iters(source_vocabs,
     max_observed_len_target= 420,
     size_vocab_source= len(source_vocabs[0]),
     size_vocab_target= len(target_vocabs[0]),
-    length_ratio_mean= 1,
+    length_ratio_mean= 1.69,
     length_ratio_std= 100,
     buckets= buckets,
     num_sents_per_bucket= [1337],
@@ -1101,6 +1101,7 @@ def get_stdin_training_data_iters(source_vocabs,
                              num_target_factors=len(target_vocabs),
                              eop_id=C.EOS_ID)
 
+
     data_loader = RawParallelDatasetLoader(buckets=buckets,
                                            eos_id=C.EOS_ID,
                                            pad_id=C.PAD_ID)
@@ -1112,8 +1113,8 @@ def get_stdin_training_data_iters(source_vocabs,
                                                bucket_batch_sizes=bucket_batch_sizes,
                                                source_vocabs=source_vocabs,
                                                target_vocabs=target_vocabs,
-                                               max_seq_len_source=buckets[0][1],
-                                               max_seq_len_target=buckets[0][0],
+                                               max_seq_len_source=buckets[0][1] + 1,
+                                               max_seq_len_target=buckets[0][0] + 1,
                                                batch_size=batch_size,
                                                permute=False)
 
