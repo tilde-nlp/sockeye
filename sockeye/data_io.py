@@ -1067,13 +1067,6 @@ def get_stdin_training_data_iters(source_vocabs,
                          num_shards=1,
                          contains_alignment_matrix=True)
 
-    config_data = DataConfig(data_statistics=None,
-                             max_seq_len_source=1337,
-                             max_seq_len_target=1337,
-                             num_source_factors=len(source_vocabs),
-                             num_target_factors=len(target_vocabs),
-                             eop_id=C.EOS_ID)
-
     buckets = [(100, 100)]
     #Prolly oughta make this bucketting algo smarter.
     pass
@@ -1083,6 +1076,30 @@ def get_stdin_training_data_iters(source_vocabs,
                                                    C.BATCH_TYPE_MAX_WORD,
                                                    [None],
                                                    1)
+
+    data_statistics = DataStatistics(num_sents= 69,
+    num_discarded= 10,
+    num_tokens_source= 420,
+    num_tokens_target= 1337,
+    num_unks_source= 10,
+    num_unks_target= 10,
+    max_observed_len_source= 420,
+    max_observed_len_target= 420,
+    size_vocab_source= len(source_vocabs[0]),
+    size_vocab_target= len(target_vocabs[0]),
+    length_ratio_mean= 1,
+    length_ratio_std= 2,
+    buckets= buckets,
+    num_sents_per_bucket= [1337],
+    average_len_target_per_bucket= [69],
+    length_ratio_stats_per_bucket = None)
+
+    config_data = DataConfig(data_statistics=data_statistics,
+                             max_seq_len_source=1337,
+                             max_seq_len_target=1337,
+                             num_source_factors=len(source_vocabs),
+                             num_target_factors=len(target_vocabs),
+                             eop_id=C.EOS_ID)
 
     data_loader = RawParallelDatasetLoader(buckets=buckets,
                                            eos_id=C.EOS_ID,
