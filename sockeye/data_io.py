@@ -1064,7 +1064,8 @@ def get_stdin_training_data_iters(source_vocabs,
                          source_vocabs=source_vocabs,
                          target_vocabs=target_vocabs,
                          shared_vocab=False,
-                         num_shards=1)
+                         num_shards=1,
+                         contains_alignment_matrix=True)
 
     config_data = DataConfig(data_statistics=None,
                              max_seq_len_source=1337,
