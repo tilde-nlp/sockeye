@@ -1094,8 +1094,6 @@ def get_stdin_training_data_iters(source_vocabs,
     average_len_target_per_bucket= [69],
     length_ratio_stats_per_bucket = None)
 
-    data_statistics.log(bucket_batch_sizes)
-
     config_data = DataConfig(data_statistics=data_statistics,
                              max_seq_len_source=1337,
                              max_seq_len_target=1337,
@@ -1120,6 +1118,60 @@ def get_stdin_training_data_iters(source_vocabs,
                                                batch_size=batch_size,
                                                permute=False)
 
+    import inspect
+
+    def inspect_object(obj):
+        obj_info = {}
+
+        # Get class name
+        obj_info['class_name'] = obj.__class__.__name__
+
+        # Get docstring
+        obj_info['docstring'] = inspect.getdoc(obj)
+
+        # Get methods
+        obj_info['methods'] = {}
+        for name, method in inspect.getmembers(obj, predicate=inspect.ismethod):
+            obj_info['methods'][name] = {
+                'signature': str(inspect.signature(method)),
+                'docstring': inspect.getdoc(method)
+            }
+
+        # Get functions
+        obj_info['functions'] = {}
+        for name, function in inspect.getmembers(obj, predicate=inspect.isfunction):
+            obj_info['functions'][name] = {
+                'signature': str(inspect.signature(function)),
+                'docstring': inspect.getdoc(function)
+            }
+
+        # Get fields and their values
+        obj_info['fields'] = {}
+        for name, value in inspect.getmembers(obj):
+            if not (inspect.ismethod(value) or inspect.isfunction(value) or name.startswith('__')):
+                obj_info['fields'][name] = value
+
+        # Print information
+        print("Class Name:", obj_info['class_name'])
+        print("\nDocstring:\n", obj_info['docstring'])
+
+        print("\nMethods:")
+        for name, details in obj_info['methods'].items():
+            print(f"  {name}{details['signature']}")
+            if details['docstring']:
+                print(f"    Docstring: {details['docstring']}")
+
+        print("\nFunctions:")
+        for name, details in obj_info['functions'].items():
+            print(f"  {name}{details['signature']}")
+            if details['docstring']:
+                print(f"    Docstring: {details['docstring']}")
+
+        print("\nFields:")
+        for name, value in obj_info['fields'].items():
+            print(f"  {name}: {value}")
+
+    inspect_object(validation_iter)
 
     return train_iter, validation_iter, config_data, data_info
 
