@@ -2105,7 +2105,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                 max_source_length = np.array(source_lengths).max()
                 max_target_length = np.array(target_lengths).max()
 
-                bucket_size = (max_source_length, max_target_length)
+                bucket_size = (max_source_length, max_target_length + 1)
 
                 alignment_matrices = [create_alignment_matrix(am, bucket_size) for am in alignment_matrices]
                 alignment_matrices = torch.cat(alignment_matrices, dim=0)
