@@ -2135,8 +2135,6 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                 #Gotta figure out prep_len.
                 pass #Eh fuck this for now
 
-                print(targets_tens.shape, labels.shape, alignment_matrices.shape)
-
                 batches.append(create_batch_from_parallel_sample(sources_tens,
                                                                  targets_tens,
                                                                  label=labels,
@@ -2146,6 +2144,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
             batches = [None for _ in range(torch.distributed.get_world_size())]
 
         utils.broadcast_object(batches)
+        print('return betch')
 
         return batches[torch.distributed.get_rank()]
 
