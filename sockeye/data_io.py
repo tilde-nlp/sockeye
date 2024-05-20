@@ -2077,6 +2077,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
             batch_count = 1
 
         if utils.is_primary_worker():
+            print('Im prime', torch.distributed.get_rank())
             batches = []
             for batch_idx in range(batch_count):
                 sources = []
