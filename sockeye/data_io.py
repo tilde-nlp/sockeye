@@ -2093,7 +2093,6 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                     src = [tokens2ids(s.split(' '), self.source_vocabs[factor_idx]) for factor_idx, s in enumerate(src)]
                     sources.append(src)
                     source_lengths.append(len(src[0]))
-                    print(source_lengths, end = ' ')
 
                     trg = inp['targets']
                     trg = [tokens2ids(t.split(' '), self.target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
@@ -2106,7 +2105,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                 max_source_length = np.array(source_lengths).max()
                 max_target_length = np.array(target_lengths).max()
 
-                bucket_size = (max_target_length + 1, max_source_length)
+                bucket_size = (max_source_length, max_target_length)
 
                 alignment_matrices = [create_alignment_matrix(am, bucket_size) for am in alignment_matrices]
                 alignment_matrices = torch.stack(alignment_matrices, dim=0)
