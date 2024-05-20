@@ -2114,7 +2114,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
 
                 #Gotta figure out what pad_id's supposed to be.
                 sources_np = np.full([self.batch_size, max_source_length, source_factor_count], C.PAD_ID, dtype=self.dtype)
-                targets_np = np.full([self.batch_size, max_target_length, target_factor_count], C.PAD_ID, dtype=self.dtype)
+                targets_np = np.full([self.batch_size, max_target_length + 1, target_factor_count], C.PAD_ID, dtype=self.dtype)
                 for sample_idx in range(self.batch_size):
                     for source_factor_idx in range(source_factor_count):
                         s = sources[sample_idx][source_factor_idx]
