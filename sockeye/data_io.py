@@ -1099,7 +1099,7 @@ def get_stdin_training_data_iters(source_vocabs,
                              max_seq_len_target=1337,
                              num_source_factors=len(source_vocabs),
                              num_target_factors=len(target_vocabs),
-                             eop_id=C.EOS_ID)
+                             eop_id=-1)
 
 
     data_loader = RawParallelDatasetLoader(buckets=buckets,
