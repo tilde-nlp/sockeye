@@ -2092,6 +2092,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                     src = inp['sources']
                     src = [tokens2ids(s[factor_idx].split(' '), self.source_vocabs[factor_idx]) for factor_idx, s in enumerate(src)]
                     sources.append(src)
+                    print(src)
+                    halt()
                     source_lengths.append(len(src[0]))
                     print(source_lengths, end = ' ')
 
