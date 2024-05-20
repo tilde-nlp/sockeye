@@ -2127,6 +2127,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                             t.insert(0, C.BOS_ID)
                         else:
                             t.append(C.EOS_ID)
+                        print(t)
+                        print(len(t))
                         targets_np[sample_idx, 0:len(t), target_factor_idx] = t
 
                 sources_tens = torch.tensor(sources_np)
