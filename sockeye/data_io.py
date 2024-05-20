@@ -2077,7 +2077,6 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
             batch_count = 1
 
         if utils.is_primary_worker():
-            print('Im prime', torch.distributed.get_rank())
             batches = []
             for batch_idx in range(batch_count):
                 sources = []
@@ -2099,9 +2098,6 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                     trg = [tokens2ids(t.split(' '), self.target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
                     targets.append(trg)
                     target_lengths.append(len(trg[0]))
-
-                    sources.append(src)
-                    targets.append(trg)
 
                 max_source_length = np.array(source_lengths).max()
                 max_target_length = np.array(target_lengths).max() + 1
@@ -2128,8 +2124,6 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                             t.insert(0, C.BOS_ID)
                         else:
                             t.append(C.EOS_ID)
-                        print(t)
-                        print(len(t))
                         targets_np[sample_idx, 0:len(t), target_factor_idx] = t
 
                 sources_tens = torch.tensor(sources_np)
