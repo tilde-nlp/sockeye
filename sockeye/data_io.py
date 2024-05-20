@@ -2103,7 +2103,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                     targets.append(trg)
 
                 max_source_length = np.array(source_lengths).max()
-                max_target_length = np.array(target_lengths).max()
+                max_target_length = np.array(target_lengths).max() + 1
 
                 bucket_size = (max_source_length, max_target_length + 1)
 
