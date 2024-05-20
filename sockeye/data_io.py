@@ -1095,8 +1095,8 @@ def get_stdin_training_data_iters(source_vocabs,
     length_ratio_stats_per_bucket = None)
 
     config_data = DataConfig(data_statistics=data_statistics,
-                             max_seq_len_source=1337,
-                             max_seq_len_target=1337,
+                             max_seq_len_source=200,
+                             max_seq_len_target=200,
                              num_source_factors=len(source_vocabs),
                              num_target_factors=len(target_vocabs),
                              eop_id=-1)
