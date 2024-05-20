@@ -2093,6 +2093,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                     src = [tokens2ids(s[factor_idx].split(' '), self.source_vocabs[factor_idx]) for factor_idx, s in enumerate(src)]
                     sources.append(src)
                     source_lengths.append(len(src[0]))
+                    print(source_lengths, end = ' ')
 
                     trg = inp['targets']
                     trg = [tokens2ids(t[factor_idx].split(' '), self.target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
