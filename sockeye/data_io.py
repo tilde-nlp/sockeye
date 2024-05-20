@@ -2120,6 +2120,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                 for sample_idx in range(self.batch_size):
                     for source_factor_idx in range(source_factor_count):
                         s = sources[sample_idx][source_factor_idx]
+                        print(s)
+                        print(len(s))
                         sources_np[sample_idx, source_factor_idx, 0:len(s)] = s
                     for target_factor_idx in range(target_factor_count):
                         t = targets[sample_idx][target_factor_idx]
