@@ -2097,10 +2097,10 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                     trg = inp['targets']
                     trg = [tokens2ids(t.split(' '), self.target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
                     targets.append(trg)
-                    target_lengths.append(len(trg[0]))
+                    target_lengths.append(len(trg[0]) + 1)
 
                 max_source_length = np.array(source_lengths).max()
-                max_target_length = np.array(target_lengths).max() + 1
+                max_target_length = np.array(target_lengths).max()
 
                 bucket_size = (max_source_length, max_target_length)
 
