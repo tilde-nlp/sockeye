@@ -2076,6 +2076,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         else:
             batch_count = 1
 
+        import time
+        sttime = time.time()
         if utils.is_primary_worker():
             batches = []
             for batch_idx in range(batch_count):
@@ -2142,6 +2144,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                                                                  alignment_matrix=alignment_matrices))
         else:
             batches = [None for _ in range(torch.distributed.get_world_size())]
+
+        print('Ellapsed time: ', time.time() - sttime)
 
         torch.distributed.broadcast_object_list(batches, src=0)
         print('return betch', torch.distributed.get_rank(), end = ', ')
