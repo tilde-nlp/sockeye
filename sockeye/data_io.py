@@ -2135,6 +2135,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                 #Gotta figure out prep_len.
                 pass #Eh fuck this for now
 
+                print(targets_tens.shape, labels.shape, alignment_matrices.shape)
+
                 batches.append(create_batch_from_parallel_sample(sources_tens,
                                                                  targets_tens,
                                                                  label=labels,
