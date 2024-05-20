@@ -2090,6 +2090,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                     alignment_matrices.append(am)
 
                     src = inp['sources']
+                    print(src)
                     src = [tokens2ids(s[factor_idx].split(' '), self.source_vocabs[factor_idx]) for factor_idx, s in enumerate(src)]
                     sources.append(src)
                     print(src)
