@@ -1052,7 +1052,7 @@ def get_stdin_training_data_iters(source_vocabs,
 
     train_iter = StdInParallelSampleIter(source_vocabs=source_vocabs,
                                          target_vocabs=target_vocabs,
-                                         batch_size=batch_size,
+                                         batch_size=batch_size // 10,
                                          num_source_factors=len(source_vocabs),
                                          num_target_factors=len(target_vocabs),
                                          dtype='int32')
