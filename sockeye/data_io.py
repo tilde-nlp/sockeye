@@ -1115,7 +1115,7 @@ def get_stdin_training_data_iters(source_vocabs,
                                                target_vocabs=target_vocabs,
                                                max_seq_len_source=buckets[0][1] + 1,
                                                max_seq_len_target=buckets[0][0] + 1,
-                                               batch_size=batch_size,
+                                               batch_size=300,
                                                permute=False)
 
     return train_iter, validation_iter, config_data, data_info
