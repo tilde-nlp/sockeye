@@ -2120,16 +2120,14 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                 for sample_idx in range(self.batch_size):
                     for source_factor_idx in range(source_factor_count):
                         s = sources[sample_idx][source_factor_idx]
-                        print(s)
-                        print(len(s))
-                        sources_np[sample_idx, source_factor_idx, 0:len(s)] = s
+                        sources_np[sample_idx, 0:len(s), source_factor_idx] = s
                     for target_factor_idx in range(target_factor_count):
                         t = targets[sample_idx][target_factor_idx]
                         if target_factor_idx == 0 or self.shift_target_factors:
                             t.insert(0, C.BOS_ID)
                         else:
                             t.append(C.EOS_ID)
-                        targets_np[sample_idx][target_factor_idx, 0:len(t)] = t
+                        targets_np[sample_idx, 0:len(t), target_factor_idx] = t
 
                 sources_tens = torch.tensor(sources_np)
                 targets_tens = torch.tensor(targets_np)
