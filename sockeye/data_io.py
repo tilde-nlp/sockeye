@@ -2144,7 +2144,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
             batches = [None for _ in range(torch.distributed.get_world_size())]
 
         utils.broadcast_object(batches)
-        print('return betch')
+        print('return betch', torch.distributed.get_rank())
 
         return batches[torch.distributed.get_rank()]
 
