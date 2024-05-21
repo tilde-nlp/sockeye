@@ -2134,7 +2134,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
             targets_tens = torch.tensor(targets_np, device=self.device).contiguous()
 
             targets_tens, labels = create_target_and_shifted_label_sequences(targets_tens)
-            targets_tens = targets_tens.to(self.device).contiguous()
+            alignment_matrices = alignment_matrices.to(self.device).contiguous()
             labels = labels.to(self.device).contiguous()
 
             #Gotta figure out prep_len.
