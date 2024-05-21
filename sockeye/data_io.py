@@ -2134,6 +2134,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                         t.append(C.EOS_ID)
                     targets_np[sample_idx, 0:len(t), target_factor_idx] = t
 
+            print('Time for prep before RAM->vRAM: ', time.time() - stprep, torch.distributed.get_rank())
             sources_tens = torch.tensor(sources_np, device=self.device).contiguous()
             targets_tens = torch.tensor(targets_np, device=self.device).contiguous()
 
