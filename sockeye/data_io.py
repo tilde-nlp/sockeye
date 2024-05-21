@@ -2162,11 +2162,11 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         rank = torch.distributed.get_rank()
         batch_start = rank * self.batch_size
         batch_end = (rank + 1) * self.batch_size
-        batch = create_batch_from_parallel_sample(sources_tens[batch_start:batch_end].cpu(),
-                                                  targets_tens[batch_start:batch_end].cpu(),
-                                                  label=labels[batch_start:batch_end].cpu(),
+        batch = create_batch_from_parallel_sample(sources_tens[batch_start:batch_end].to('cpu'),
+                                                  targets_tens[batch_start:batch_end].to('cpu'),
+                                                  label=labels[batch_start:batch_end].to('cpu'),
                                                   prepended_source_length=None,
-                                                  alignment_matrix=alignment_matrices[batch_start:batch_end].cpu())
+                                                  alignment_matrix=alignment_matrices[batch_start:batch_end].to('cpu'))
 
         print('return betch', torch.distributed.get_rank(), end = ', ')
 
