@@ -2107,7 +2107,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                     targets.append(trg)
                     target_lengths.append(len(trg[0]) + 1)
 
-            print('time for the parse ', time.time() - stpars)
+            print('time for the parse ', time.time() - stparse)
 
             max_source_length = np.array(source_lengths).max()
             max_target_length = np.array(target_lengths).max()
