@@ -2168,11 +2168,6 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                                                   prepended_source_length=None,
                                                   alignment_matrix=alignment_matrices[batch_start:batch_end].to('cpu'))
 
-        print(batch.source.shape)
-        print(batch.target.shape)
-        for k in batch.labels:
-            print(batch.labels[k].shape)
-
         print('return betch', torch.distributed.get_rank(), end = ', ')
 
         return batch
