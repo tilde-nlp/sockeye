@@ -2160,8 +2160,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         torch.distributed.barrier()
 
         rank = torch.distributed.get_rank()
-        batch_start = rank * self.batch_size
-        batch_end = (rank + 1) * self.batch_size
+        batch_start = rank * self.batch_size // 10
+        batch_end = (rank + 1) * self.batch_size // 10
         batch = create_batch_from_parallel_sample(sources_tens[batch_start:batch_end].to('cpu').int(),
                                                   targets_tens[batch_start:batch_end].to('cpu').int(),
                                                   label=labels[batch_start:batch_end].to('cpu').int(),
