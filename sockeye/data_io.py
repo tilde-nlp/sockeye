@@ -2063,6 +2063,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         self.target_vocabs = target_vocabs
         self.dtype = dtype
         self.device = device
+        self.othertime = None
 
     def __iter__(self):
         return self
@@ -2080,6 +2081,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         else:
             batch_count = 1
         import time
+        if self.othertime is not None:
+            print('Other time:', self.othertime - time.time(), torch.distributed.get_rank())
         stprep = time.time()
         if utils.is_primary_worker():
             sources = []
@@ -2146,7 +2149,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         else:
             tensor_shapes = [None for _ in range(4)]
 
-        print('Time for prep: ', time.time() - stprep)
+        print('Time for prep: ', time.time() - stprep, torch.distributed.get_rank())
         import time
         sttime = time.time()
         #Broadcast tensor shapes.
@@ -2162,7 +2165,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         torch.distributed.broadcast(labels, src=0)
         torch.distributed.broadcast(alignment_matrices, src=0)
         torch.distributed.barrier()
-        print('Time for sync:', time.time() - sttime)
+        print('Time for sync:', time.time() - sttime, torch.distributed.get_rank())
 
         rank = torch.distributed.get_rank()
         batch_start = rank * self.batch_size // 10
@@ -2172,8 +2175,6 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                                                   label=labels[batch_start:batch_end].to('cpu').int(),
                                                   prepended_source_length=None,
                                                   alignment_matrix=alignment_matrices[batch_start:batch_end].to('cpu'))
-
-        print('return betch', torch.distributed.get_rank(), end = ', ')
 
         return batch
 
