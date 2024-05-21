@@ -2130,12 +2130,12 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                         t.append(C.EOS_ID)
                     targets_np[sample_idx, 0:len(t), target_factor_idx] = t
 
-            sources_tens = torch.tensor(sources_np, device=self.device)
-            targets_tens = torch.tensor(targets_np, device=self.device)
+            sources_tens = torch.tensor(sources_np, device=self.device).contiguous()
+            targets_tens = torch.tensor(targets_np, device=self.device).contiguous()
 
             targets_tens, labels = create_target_and_shifted_label_sequences(targets_tens)
-            targets_tens = targets_tens.to(self.device)
-            labels = labels.to(self.device)
+            targets_tens = targets_tens.to(self.device).contiguous()
+            labels = labels.to(self.device).contiguous()
 
             #Gotta figure out prep_len.
             pass #Eh fuck this for now
@@ -2148,10 +2148,10 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         #Broadcast tensor shapes.
         torch.distributed.broadcast_object_list(tensor_shapes, src=0)
         if not utils.is_primary_worker():
-            sources_tens = torch.zeros(tensor_shapes[0])
-            targets_tens = torch.zeros(tensor_shapes[1])
-            labels = torch.zeros(tensor_shapes[2])
-            alignment_matrices = torch.zeros(tensor_shapes[3])
+            sources_tens = torch.zeros(tensor_shapes[0]).to(self.device).contiguous()
+            targets_tens = torch.zeros(tensor_shapes[1]).to(self.device).contiguous()
+            labels = torch.zeros(tensor_shapes[2]).to(self.device).contiguous()
+            alignment_matrices = torch.zeros(tensor_shapes[3]).to(self.device).contiguous()
 
         torch.distributed.broadcast(sources_tens, src=0)
         torch.distributed.broadcast(targets_tens, src=0)
