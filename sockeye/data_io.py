@@ -2167,6 +2167,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         torch.distributed.barrier()
         print('Time for sync:', time.time() - sttime, torch.distributed.get_rank())
 
+        self.othertime=time.time()
+
         rank = torch.distributed.get_rank()
         batch_start = rank * self.batch_size // 10
         batch_end = (rank + 1) * self.batch_size // 10
