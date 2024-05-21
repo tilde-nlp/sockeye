@@ -1045,6 +1045,7 @@ def get_stdin_training_data_iters(source_vocabs,
                                   batch_size,
                                   validation_sources,
                                   validation_targets,
+                                  device,
                                   dtype='int32'):
 
     #Oughta add like type annotations everywhere.
@@ -1055,6 +1056,7 @@ def get_stdin_training_data_iters(source_vocabs,
                                          batch_size=batch_size // 10,
                                          num_source_factors=len(source_vocabs),
                                          num_target_factors=len(target_vocabs),
+                                         device=device,
                                          dtype='int32')
 
     #Oughta rename variables so their names make sense with the data type.
@@ -2051,6 +2053,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                  shift_target_factors: bool = C.TARGET_FACTOR_SHIFT,
                  num_source_factors: int = 1,
                  num_target_factors: int = 1,
+                 device = None,
                  dtype='int32') -> None:
         self.shift_target_factors = shift_target_factors
         self.batch_size = batch_size
@@ -2059,6 +2062,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         self.source_vocabs = source_vocabs
         self.target_vocabs = target_vocabs
         self.dtype = dtype
+        self.device = device
 
     def __iter__(self):
         return self
@@ -2126,10 +2130,12 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                         t.append(C.EOS_ID)
                     targets_np[sample_idx, 0:len(t), target_factor_idx] = t
 
-            sources_tens = torch.tensor(sources_np)
-            targets_tens = torch.tensor(targets_np)
+            sources_tens = torch.tensor(sources_np, device=self.device)
+            targets_tens = torch.tensor(targets_np, device=self.device)
 
             targets_tens, labels = create_target_and_shifted_label_sequences(targets_tens)
+            targets_tens = targets_tens.to(self.device)
+            labels = labels.to(self.device)
 
             #Gotta figure out prep_len.
             pass #Eh fuck this for now

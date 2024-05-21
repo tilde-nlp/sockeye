@@ -263,7 +263,8 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
                                  max_seq_len_target: int,
                                  shared_vocab: bool,
                                  resume_training: bool,
-                                 output_folder: str) -> Tuple['data_io.BaseParallelSampleIter',
+                                 output_folder: str,
+                                 device) -> Tuple['data_io.BaseParallelSampleIter',
                                                               'data_io.BaseParallelSampleIter',
                                                               'data_io.DataConfig',
                                                               'data_io.DataInfo',
@@ -386,7 +387,8 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
                                                                                                     target_vocabs,
                                                                                                     args.batch_size,
                                                                                                     validation_sources,
-                                                                                                    validation_targets)
+                                                                                                    validation_targets,
+                                                                                                    device)
 
 
 
@@ -1093,7 +1095,8 @@ def train(args: argparse.Namespace, custom_metrics_logger: Optional[Callable] = 
         max_seq_len_target=max_seq_len_target,
         shared_vocab=use_shared_vocab(args),
         resume_training=resume_training,
-        output_folder=output_folder)
+        output_folder=output_folder,
+        device=device)
 
     if max_seq_len_source != config_data.max_seq_len_source:
         logger.info("Maximum source length determined by prepared data. Using %d instead of %d",
