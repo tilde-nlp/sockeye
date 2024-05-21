@@ -2079,7 +2079,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
             batch_count = torch.distributed.get_world_size()
         else:
             batch_count = 1
-
+        import time
+        stprep = time.time()
         if utils.is_primary_worker():
             sources = []
             targets = []
@@ -2145,6 +2146,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         else:
             tensor_shapes = [None for _ in range(4)]
 
+        print('Time for prep: ', time.time() - stprep)
         import time
         sttime = time.time()
         #Broadcast tensor shapes.
