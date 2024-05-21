@@ -2114,7 +2114,6 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
             alignment_matrices = [create_alignment_matrix(am, bucket_size) for am in alignment_matrices]
             alignment_matrices = torch.cat(alignment_matrices, dim=0)
             alignment_matrices = alignment_matrices.to_dense()
-            alignment_matrices = alignment_matrices.reshape(-1, bucket_size[1], bucket_size[0])
 
             source_factor_count = len(sources[0])
             target_factor_count = len(targets[0])
@@ -2140,6 +2139,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
 
             targets_tens, labels = create_target_and_shifted_label_sequences(targets_tens)
             alignment_matrices = alignment_matrices.to(self.device).contiguous()
+            alignment_matrices = alignment_matrices.reshape(-1, bucket_size[1], bucket_size[0])
             labels = labels.to(self.device).contiguous()
 
             #Gotta figure out prep_len.
