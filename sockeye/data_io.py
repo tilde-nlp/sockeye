@@ -2082,7 +2082,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
             batch_count = 1
         import time
         if self.othertime is not None:
-            print('Other time:', self.othertime - time.time(), torch.distributed.get_rank())
+            print('Other time:', -self.othertime + time.time(), torch.distributed.get_rank())
         stprep = time.time()
         if utils.is_primary_worker():
             sources = []
@@ -2090,6 +2090,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
             source_lengths = []
             target_lengths = []
             alignment_matrices = []
+            stparse = time.time()
             for batch_idx in range(batch_count):
                 for _ in range(self.batch_size):
                     inp = json.loads(input())
@@ -2105,6 +2106,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                     trg = [tokens2ids(t.split(' '), self.target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
                     targets.append(trg)
                     target_lengths.append(len(trg[0]) + 1)
+
+            print('time for the parse ', time.time() - stpars)
 
             max_source_length = np.array(source_lengths).max()
             max_target_length = np.array(target_lengths).max()
