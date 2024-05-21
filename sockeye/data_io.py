@@ -2145,6 +2145,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         else:
             tensor_shapes = [None for _ in range(4)]
 
+        import time
+        sttime = time.time()
         #Broadcast tensor shapes.
         torch.distributed.broadcast_object_list(tensor_shapes, src=0)
         if not utils.is_primary_worker():
@@ -2158,6 +2160,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         torch.distributed.broadcast(labels, src=0)
         torch.distributed.broadcast(alignment_matrices, src=0)
         torch.distributed.barrier()
+        print('Time for sync:', time.time() - sttime)
 
         rank = torch.distributed.get_rank()
         batch_start = rank * self.batch_size // 10
