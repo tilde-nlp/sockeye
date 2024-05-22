@@ -2084,103 +2084,94 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         if self.othertime is not None:
             print('Other time:', -self.othertime + time.time(), torch.distributed.get_rank())
         stprep = time.time()
+
         if utils.is_primary_worker():
-            sources = []
-            targets = []
-            source_lengths = []
-            target_lengths = []
-            alignment_matrices = []
-            stparse = time.time()
+            json_batches = []
             for batch_idx in range(batch_count):
-                for _ in range(self.batch_size):
-                    inp = json.loads(input())
-                    am = parse_alignment_matrix_indices(inp['alignment_matrix'])
-                    alignment_matrices.append(am)
-
-                    src = inp['sources']
-                    src = [tokens2ids(s.split(' '), self.source_vocabs[factor_idx]) for factor_idx, s in enumerate(src)]
-                    sources.append(src)
-                    source_lengths.append(len(src[0]))
-
-                    trg = inp['targets']
-                    trg = [tokens2ids(t.split(' '), self.target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
-                    targets.append(trg)
-                    target_lengths.append(len(trg[0]) + 1)
-
-            print('time for the parse ', time.time() - stparse)
-
-            max_source_length = np.array(source_lengths).max()
-            max_target_length = np.array(target_lengths).max()
-
-            bucket_size = (max_source_length, max_target_length)
-
-            alignment_matrices = [create_alignment_matrix(am, bucket_size).to(self.device) for am in alignment_matrices]
-            alignment_matrices = torch.cat(alignment_matrices, dim=0)
-            alignment_matrices = alignment_matrices.to_dense()
-
-            source_factor_count = len(sources[0])
-            target_factor_count = len(targets[0])
-
-            #Gotta figure out what pad_id's supposed to be.
-            sources_np = np.full([self.batch_size, max_source_length, source_factor_count], C.PAD_ID, dtype=self.dtype)
-            targets_np = np.full([self.batch_size, max_target_length + 1, target_factor_count], C.PAD_ID, dtype=self.dtype)
-            for sample_idx in range(self.batch_size):
-                for source_factor_idx in range(source_factor_count):
-                    s = sources[sample_idx][source_factor_idx]
-                    sources_np[sample_idx, 0:len(s), source_factor_idx] = s
-                for target_factor_idx in range(target_factor_count):
-                    t = targets[sample_idx][target_factor_idx]
-                    if target_factor_idx == 0 or self.shift_target_factors:
-                        t.insert(0, C.BOS_ID)
-                    else:
-                        t.append(C.EOS_ID)
-                    targets_np[sample_idx, 0:len(t), target_factor_idx] = t
-
-            print('Time for prep before RAM->vRAM: ', time.time() - stprep, torch.distributed.get_rank())
-            sources_tens = torch.tensor(sources_np, device=self.device).contiguous()
-            targets_tens = torch.tensor(targets_np, device=self.device).contiguous()
-
-            targets_tens, labels = create_target_and_shifted_label_sequences(targets_tens)
-            alignment_matrices = alignment_matrices.to(self.device).contiguous()
-            alignment_matrices = alignment_matrices.reshape(-1, bucket_size[1], bucket_size[0])
-            labels = labels.to(self.device).contiguous()
-
-            #Gotta figure out prep_len.
-            pass #Eh fuck this for now
-
-            # In list because broadcasting requires list for some reason, I think.
-            tensor_shapes = [sources_tens.shape, targets_tens.shape, labels.shape, alignment_matrices.shape]
+                json_batch = []
+                for sample_index in range(self.batch_size):
+                    json_batch.append(input())
+                json_batches.append(json_batch)
         else:
-            tensor_shapes = [None for _ in range(4)]
+            json_batches = [None for _ in range(torch.distributed.get_world_size())]
+
+        torch.distributed.broadcast_object_list(json_batches, src=0)
+
+        sources = []
+        targets = []
+        source_lengths = []
+        target_lengths = []
+        alignment_matrices = []
+        stparse = time.time()
+        json_batch = json_batches[torch.distributed.get_rank()]
+
+        for json_str in json_batch:
+            inp = json.loads(json_str)
+            am = parse_alignment_matrix_indices(inp['alignment_matrix'])
+            alignment_matrices.append(am)
+
+            src = inp['sources']
+            src = [tokens2ids(s.split(' '), self.source_vocabs[factor_idx]) for factor_idx, s in enumerate(src)]
+            sources.append(src)
+            source_lengths.append(len(src[0]))
+
+            trg = inp['targets']
+            trg = [tokens2ids(t.split(' '), self.target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
+            targets.append(trg)
+            target_lengths.append(len(trg[0]) + 1)
+
+        print('time for the parse ', time.time() - stparse)
+
+        max_source_length = np.array(source_lengths).max()
+        max_target_length = np.array(target_lengths).max()
+
+        bucket_size = (max_source_length, max_target_length)
+
+        alignment_matrices = [create_alignment_matrix(am, bucket_size).to(self.device) for am in alignment_matrices]
+        alignment_matrices = torch.cat(alignment_matrices, dim=0)
+        alignment_matrices = alignment_matrices.to_dense()
+
+        source_factor_count = len(sources[0])
+        target_factor_count = len(targets[0])
+
+        #Gotta figure out what pad_id's supposed to be.
+        sources_np = np.full([self.batch_size, max_source_length, source_factor_count], C.PAD_ID, dtype=self.dtype)
+        targets_np = np.full([self.batch_size, max_target_length + 1, target_factor_count], C.PAD_ID, dtype=self.dtype)
+        for sample_idx in range(self.batch_size):
+            for source_factor_idx in range(source_factor_count):
+                s = sources[sample_idx][source_factor_idx]
+                sources_np[sample_idx, 0:len(s), source_factor_idx] = s
+            for target_factor_idx in range(target_factor_count):
+                t = targets[sample_idx][target_factor_idx]
+                if target_factor_idx == 0 or self.shift_target_factors:
+                    t.insert(0, C.BOS_ID)
+                else:
+                    t.append(C.EOS_ID)
+                targets_np[sample_idx, 0:len(t), target_factor_idx] = t
+
+        sources_tens = torch.tensor(sources_np)
+        targets_tens = torch.tensor(targets_np)
+
+        targets_tens, labels = create_target_and_shifted_label_sequences(targets_tens)
+        alignment_matrices = alignment_matrices.reshape(-1, bucket_size[1], bucket_size[0])
+
+        #Gotta figure out prep_len.
+        pass #Eh fuck this for now
 
         print('Time for prep: ', time.time() - stprep, torch.distributed.get_rank())
         import time
         sttime = time.time()
-        #Broadcast tensor shapes.
-        torch.distributed.broadcast_object_list(tensor_shapes, src=0)
-        if not utils.is_primary_worker():
-            sources_tens = torch.zeros(tensor_shapes[0]).to(self.device).contiguous()
-            targets_tens = torch.zeros(tensor_shapes[1]).to(self.device).contiguous()
-            labels = torch.zeros(tensor_shapes[2]).to(self.device).contiguous()
-            alignment_matrices = torch.zeros(tensor_shapes[3]).to(self.device).contiguous()
 
-        torch.distributed.broadcast(sources_tens, src=0)
-        torch.distributed.broadcast(targets_tens, src=0)
-        torch.distributed.broadcast(labels, src=0)
-        torch.distributed.broadcast(alignment_matrices, src=0)
-        torch.distributed.barrier()
         print('Time for sync:', time.time() - sttime, torch.distributed.get_rank())
 
         self.othertime=time.time()
 
         rank = torch.distributed.get_rank()
-        batch_start = rank * self.batch_size // 10
-        batch_end = (rank + 1) * self.batch_size // 10
-        batch = create_batch_from_parallel_sample(sources_tens[batch_start:batch_end].to('cpu').int(),
-                                                  targets_tens[batch_start:batch_end].to('cpu').int(),
-                                                  label=labels[batch_start:batch_end].to('cpu').int(),
+        batch = create_batch_from_parallel_sample(sources_tens,
+                                                  targets_tens,
+                                                  label=labels,
                                                   prepended_source_length=None,
-                                                  alignment_matrix=alignment_matrices[batch_start:batch_end].to('cpu'))
+                                                  alignment_matrix=alignment_matrices)
 
         return batch
 
