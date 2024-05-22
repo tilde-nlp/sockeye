@@ -2083,8 +2083,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         import time
         if self.othertime is not None:
             print('Other time:', -self.othertime + time.time(), torch.distributed.get_rank())
-        stprep = time.time()
-
+        sttime = time.time()
         if utils.is_primary_worker():
             json_batches = []
             for batch_idx in range(batch_count):
@@ -2102,7 +2101,6 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         source_lengths = []
         target_lengths = []
         alignment_matrices = []
-        stparse = time.time()
         json_batch = json_batches[torch.distributed.get_rank()]
 
         for json_str in json_batch:
@@ -2119,8 +2117,6 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
             trg = [tokens2ids(t.split(' '), self.target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
             targets.append(trg)
             target_lengths.append(len(trg[0]) + 1)
-
-        print('time for the parse ', time.time() - stparse)
 
         max_source_length = np.array(source_lengths).max()
         max_target_length = np.array(target_lengths).max()
@@ -2158,11 +2154,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         #Gotta figure out prep_len.
         pass #Eh fuck this for now
 
-        print('Time for prep: ', time.time() - stprep, torch.distributed.get_rank())
-        import time
-        sttime = time.time()
-
-        print('Time for sync:', time.time() - sttime, torch.distributed.get_rank())
+        print('Time for the full shabam:', time.time() - sttime, torch.distributed.get_rank())
 
         self.othertime=time.time()
 
