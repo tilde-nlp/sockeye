@@ -2080,16 +2080,16 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
             batch_count = torch.distributed.get_world_size()
         else:
             batch_count = 1
+
         import time
         if self.othertime is not None:
             print('Other time:', -self.othertime + time.time(), torch.distributed.get_rank())
+
         sttime = time.time()
         if utils.is_primary_worker():
             json_batches = []
             for batch_idx in range(batch_count):
-                json_batch = []
-                for sample_index in range(self.batch_size):
-                    json_batch.append(input())
+                json_batch = input()
                 json_batches.append(json_batch)
         else:
             json_batches = [None for _ in range(torch.distributed.get_world_size())]
@@ -2103,20 +2103,27 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         alignment_matrices = []
         json_batch = json_batches[torch.distributed.get_rank()]
 
-        for json_str in json_batch:
-            inp = json.loads(json_str)
-            am = parse_alignment_matrix_indices(inp['alignment_matrix'])
+        batch = json.loads(json_batch)
+        for alignment_matrix in batch['alignment_matrix']:
+            am = parse_alignment_matrix_indices(alignment_matrix)
             alignment_matrices.append(am)
 
-            src = inp['sources']
+        for sources in batch['sources']:
+            src = sources
             src = [tokens2ids(s.split(' '), self.source_vocabs[factor_idx]) for factor_idx, s in enumerate(src)]
             sources.append(src)
             source_lengths.append(len(src[0]))
 
-            trg = inp['targets']
+        for targets in batch['targets']:
+            trg = targets
             trg = [tokens2ids(t.split(' '), self.target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
             targets.append(trg)
             target_lengths.append(len(trg[0]) + 1)
+
+        #Some computationally cheap data validation.
+        assert len(targets) == len(sources)
+        assert len(sources) == len(alignment_matrices)
+        batch_size = len(targets)
 
         max_source_length = np.array(source_lengths).max()
         max_target_length = np.array(target_lengths).max()
@@ -2133,9 +2140,9 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         target_factor_count = len(targets[0])
 
         #Gotta figure out what pad_id's supposed to be.
-        sources_np = np.full([self.batch_size, max_source_length, source_factor_count], C.PAD_ID, dtype=self.dtype)
-        targets_np = np.full([self.batch_size, max_target_length + 1, target_factor_count], C.PAD_ID, dtype=self.dtype)
-        for sample_idx in range(self.batch_size):
+        sources_np = np.full([batch_size, max_source_length, source_factor_count], C.PAD_ID, dtype=self.dtype)
+        targets_np = np.full([batch_size, max_target_length + 1, target_factor_count], C.PAD_ID, dtype=self.dtype)
+        for sample_idx in range(batch_size):
             for source_factor_idx in range(source_factor_count):
                 s = sources[sample_idx][source_factor_idx]
                 sources_np[sample_idx, 0:len(s), source_factor_idx] = s
