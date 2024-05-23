@@ -2104,29 +2104,17 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         json_batch = json_batches[torch.distributed.get_rank()]
 
         batch = json.loads(json_batch)
-        c=0
         for alignment_matrix in batch['alignment_matrix']:
-            c+=1
-            if c == 91:
-                break
             am = parse_alignment_matrix_indices(alignment_matrix)
             alignment_matrices.append(am)
 
-        c=0
         for sources_ in batch['sources']:
-            c+=1
-            if c == 91:
-                break
             src = sources_
             src = [tokens2ids(s.split(' '), self.source_vocabs[factor_idx]) for factor_idx, s in enumerate(src)]
             sources.append(src)
             source_lengths.append(len(src[0]))
 
-        c=0
         for targets_ in batch['targets']:
-            c+=1
-            if c == 91:
-                break
             trg = targets_
             trg = [tokens2ids(t.split(' '), self.target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
             targets.append(trg)
@@ -2139,8 +2127,6 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
 
         max_source_length = np.array(source_lengths).max()
         max_target_length = np.array(target_lengths).max()
-        max_source_length = 300
-        max_target_length = 300
 
         bucket_size = (max_source_length, max_target_length)
 
@@ -2180,11 +2166,11 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         self.othertime=time.time()
 
         rank = torch.distributed.get_rank()
-        batch = create_batch_from_parallel_sample(sources_tens[:30],
-                                                  targets_tens[:30],
-                                                  label=labels[:30],
+        batch = create_batch_from_parallel_sample(sources_tens,
+                                                  targets_tens,
+                                                  label=labels,
                                                   prepended_source_length=None,
-                                                  alignment_matrix=alignment_matrices[:30])
+                                                  alignment_matrix=alignment_matrices)
 
         return batch
 
