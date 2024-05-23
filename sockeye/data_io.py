@@ -2108,14 +2108,14 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
             am = parse_alignment_matrix_indices(alignment_matrix)
             alignment_matrices.append(am)
 
-        for sources in batch['sources']:
-            src = sources
+        for sources_ in batch['sources']:
+            src = sources_
             src = [tokens2ids(s.split(' '), self.source_vocabs[factor_idx]) for factor_idx, s in enumerate(src)]
             sources.append(src)
             source_lengths.append(len(src[0]))
 
-        for targets in batch['targets']:
-            trg = targets
+        for targets_ in batch['targets']:
+            trg = targets_
             trg = [tokens2ids(t.split(' '), self.target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
             targets.append(trg)
             target_lengths.append(len(trg[0]) + 1)
