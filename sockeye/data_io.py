@@ -2168,11 +2168,11 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         self.othertime=time.time()
 
         rank = torch.distributed.get_rank()
-        batch = create_batch_from_parallel_sample(sources_tens,
-                                                  targets_tens,
-                                                  label=labels,
+        batch = create_batch_from_parallel_sample(sources_tens[:30],
+                                                  targets_tens[:30],
+                                                  label=labels[:30],
                                                   prepended_source_length=None,
-                                                  alignment_matrix=alignment_matrices)
+                                                  alignment_matrix=alignment_matrices[:30])
 
         return batch
 
