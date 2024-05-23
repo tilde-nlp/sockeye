@@ -2104,17 +2104,29 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         json_batch = json_batches[torch.distributed.get_rank()]
 
         batch = json.loads(json_batch)
+        c=0
         for alignment_matrix in batch['alignment_matrix']:
+            c+=1
+            if c == 91:
+                break
             am = parse_alignment_matrix_indices(alignment_matrix)
             alignment_matrices.append(am)
 
+        c=0
         for sources_ in batch['sources']:
+            c+=1
+            if c == 91:
+                break
             src = sources_
             src = [tokens2ids(s.split(' '), self.source_vocabs[factor_idx]) for factor_idx, s in enumerate(src)]
             sources.append(src)
             source_lengths.append(len(src[0]))
 
+        c=0
         for targets_ in batch['targets']:
+            c+=1
+            if c == 91:
+                break
             trg = targets_
             trg = [tokens2ids(t.split(' '), self.target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
             targets.append(trg)
