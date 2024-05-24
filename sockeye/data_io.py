@@ -2089,7 +2089,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
 
         import time
         if self.othertime is not None:
-            print('Other time:', -self.othertime + time.time(), torch.distributed.get_rank())
+            pass
+            #print('Other time:', -self.othertime + time.time(), torch.distributed.get_rank())
 
         sttime = time.time()
         if utils.is_primary_worker():
@@ -2197,7 +2198,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         #Gotta figure out prep_len.
         pass #Eh fuck this for now
 
-        print('Time for the full shabam:', time.time() - sttime, torch.distributed.get_rank())
+        #print('Time for the full shabam:', time.time() - sttime, torch.distributed.get_rank())
 
         self.othertime=time.time()
 
