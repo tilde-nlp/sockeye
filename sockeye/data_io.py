@@ -2116,7 +2116,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
             src = [tokens2ids(s.split(' '), self.source_vocabs[factor_idx]) for factor_idx, s in enumerate(src)]
             sources.append(src)
             source_lengths.append(len(src[0]))
-            if source_lengths[-1] > self.max_source_seq_len:
+            if source_lengths[-1] > self.max_source_len:
                 bad_indexes.add(idx)
 
         for idx, targets_ in enumerate(batch['targets']):
@@ -2124,7 +2124,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
             trg = [tokens2ids(t.split(' '), self.target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
             targets.append(trg)
             target_lengths.append(len(trg[0]) + 1)
-            if target_lengths[-1] > self.max_target_seq_len:
+            if target_lengths[-1] > self.max_target_len:
                 bad_indexes.add(idx)
 
         for idx, alignment_matrix in enumerate(batch['alignment_matrix']):
