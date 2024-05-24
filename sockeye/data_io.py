@@ -2166,7 +2166,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
 
         bucket_size = (max_source_length, max_target_length)
 
-        alignment_matrices = [create_alignment_matrix(am, bucket_size).to(self.device) for am in alignment_matrices]
+        alignment_matrices = [create_alignment_matrix(am, bucket_size) for am in alignment_matrices]
         alignment_matrices = torch.cat(alignment_matrices, dim=0)
         alignment_matrices = alignment_matrices.to_dense()
 
