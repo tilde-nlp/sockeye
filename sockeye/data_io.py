@@ -1045,7 +1045,8 @@ def get_stdin_training_data_iters(source_vocabs,
                                   batch_size,
                                   validation_sources,
                                   validation_targets,
-                                  device,
+                                  max_source_len: int = 256,
+                                  max_target_len: int = 256,
                                   dtype='int32'):
 
     #Oughta add like type annotations everywhere.
@@ -1056,7 +1057,8 @@ def get_stdin_training_data_iters(source_vocabs,
                                          batch_size=batch_size // 10,
                                          num_source_factors=len(source_vocabs),
                                          num_target_factors=len(target_vocabs),
-                                         device=device,
+                                         max_source_len=max_source_len,
+                                         max_target_len=max_target_len,
                                          dtype='int32')
 
     #Oughta rename variables so their names make sense with the data type.
@@ -1097,8 +1099,8 @@ def get_stdin_training_data_iters(source_vocabs,
     length_ratio_stats_per_bucket = None)
 
     config_data = DataConfig(data_statistics=data_statistics,
-                             max_seq_len_source=30,
-                             max_seq_len_target=30,
+                             max_seq_len_source=max_source_len,
+                             max_seq_len_target=max_target_len,
                              num_source_factors=len(source_vocabs),
                              num_target_factors=len(target_vocabs),
                              eop_id=-1)
@@ -2053,7 +2055,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                  shift_target_factors: bool = C.TARGET_FACTOR_SHIFT,
                  num_source_factors: int = 1,
                  num_target_factors: int = 1,
-                 device = None,
+                 max_source_len: int = 256,
+                 max_target_len: int = 256,
                  dtype='int32') -> None:
         self.shift_target_factors = shift_target_factors
         self.batch_size = batch_size
@@ -2062,8 +2065,11 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         self.source_vocabs = source_vocabs
         self.target_vocabs = target_vocabs
         self.dtype = dtype
-        self.device = device
         self.othertime = None
+        self.max_source_len = max_source_len
+        self.max_target_len = max_target_len
+
+        self.len_exceed_warned = False
 
     def __iter__(self):
         return self
@@ -2104,21 +2110,51 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         json_batch = json_batches[torch.distributed.get_rank()]
 
         batch = json.loads(json_batch)
-        for alignment_matrix in batch['alignment_matrix']:
-            am = parse_alignment_matrix_indices(alignment_matrix)
-            alignment_matrices.append(am)
-
-        for sources_ in batch['sources']:
+        bad_indexes = set()
+        for idx, sources_ in enumerate(batch['sources']):
             src = sources_
             src = [tokens2ids(s.split(' '), self.source_vocabs[factor_idx]) for factor_idx, s in enumerate(src)]
             sources.append(src)
             source_lengths.append(len(src[0]))
+            if source_lengths[-1] > self.max_source_seq_len:
+                bad_indexes.add(idx)
 
-        for targets_ in batch['targets']:
+        for idx, targets_ in enumerate(batch['targets']):
             trg = targets_
             trg = [tokens2ids(t.split(' '), self.target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
             targets.append(trg)
             target_lengths.append(len(trg[0]) + 1)
+            if target_lengths[-1] > self.max_target_seq_len:
+                bad_indexes.add(idx)
+
+        for idx, alignment_matrix in enumerate(batch['alignment_matrix']):
+            am = parse_alignment_matrix_indices(alignment_matrix)
+            alignment_matrices.append(am)
+
+        if (not self.len_exceed_warned) and len(bad_indexes) > 0:
+            self.len_exceed_warned = True
+            logger.warning("Received batch whose source or target was longer than the maximum allowed source or target "
+                           "length. Either change your batch generating code, or --max-source-length or "
+                           "--max-target-length. Otherwise these sentences are dropped.")
+        if len(bad_indexes) > 0:
+            #Throw out the bad data.
+            sources_good = []
+            targets_good = []
+            source_lengths_good = []
+            target_lengths_good = []
+            alignment_matrices_good = []
+            for idx in range(len(targets) - 1, - 1, - 1):
+                if idx not in bad_indexes:
+                    sources_good.append(sources[idx])
+                    targets_good.append(targets[idx])
+                    source_lengths_good.append(source_lengths[idx])
+                    target_lengths_good.append(target_lengths[idx])
+                    alignment_matrices_good.append(alignment_matrices)
+            sources = sources_good
+            targets = targets_good
+            source_lengths = source_lengths_good
+            target_lengths = target_lengths_good
+            alignment_matrices = alignment_matrices_good
 
         #Some computationally cheap data validation.
         assert len(targets) == len(sources)
