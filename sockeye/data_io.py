@@ -2162,9 +2162,9 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         assert len(sources) == len(alignment_matrices)
         batch_size = len(targets)
 
-        max_source_length = (np.array(source_lengths).max() + 11) // 12 * 12
-        max_target_length = (np.array(target_lengths).max() + 11) // 12 * 12
-        max_source_length = max(max_source_length, max_target_length)
+        max_source_length = (np.array(source_lengths).max() + 7) // 8 * 8
+        max_target_length = (np.array(target_lengths).max() + 7) // 8 * 8
+        max_source_length = min(max(max_source_length, max_target_length), self.max_source_len)
         max_target_length = max_source_length
 
         bucket_size = (max_source_length, max_target_length)
