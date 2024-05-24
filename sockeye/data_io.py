@@ -2134,8 +2134,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         if (not self.len_exceed_warned) and len(bad_indexes) > 0:
             self.len_exceed_warned = True
             logger.warning("Received batch whose source or target was longer than the maximum allowed source or target "
-                           "length. Either change your batch generating code, or --max-source-length or "
-                           "--max-target-length. Otherwise these sentences are dropped.")
+                           "length. Either change your batch generating code, or --max-seq-len. Otherwise these sentences are dropped.")
+
         if len(bad_indexes) > 0:
             #Throw out the bad data.
             sources_good = []
@@ -2149,7 +2149,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                     targets_good.append(targets[idx])
                     source_lengths_good.append(source_lengths[idx])
                     target_lengths_good.append(target_lengths[idx])
-                    alignment_matrices_good.append(alignment_matrices)
+                    alignment_matrices_good.append(alignment_matrices[idx])
             sources = sources_good
             targets = targets_good
             source_lengths = source_lengths_good
