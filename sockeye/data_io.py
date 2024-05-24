@@ -2164,6 +2164,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
 
         max_source_length = (np.array(source_lengths).max() + 11) // 12 * 12
         max_target_length = (np.array(target_lengths).max() + 11) // 12 * 12
+        max_source_length = max(max_source_length, max_target_length)
+        max_target_length = max_source_length
 
         bucket_size = (max_source_length, max_target_length)
 
