@@ -1040,17 +1040,28 @@ def get_prepared_data_iters(prepared_data_dir: str,
     return train_iter, validation_iter, config_data, data_info, source_vocabs, target_vocabs
 
 
-def get_stdin_training_data_iters(source_vocabs,
-                                  target_vocabs,
-                                  batch_size,
-                                  validation_sources,
-                                  validation_targets,
+def get_stdin_training_data_iters(source_vocabs: vocab.Vocab,
+                                  target_vocabs: vocab.Vocab,
+                                  batch_size: int,
+                                  validation_sources: List[str],
+                                  validation_targets: List[str],
                                   max_source_len: int = 256,
                                   max_target_len: int = 256,
+                                  shift_alignments: bool = False,
                                   dtype='int32'):
+    """
+    Function returns a data iterator that reads from stdin, and a validation data iterator.
 
-    #Oughta add like type annotations everywhere.
-    pass
+    batch_size - batch size used for validation data iterator.
+    :param validation_sources: Path to source validation data (with optional factor data paths).
+    :param validation_targets: Path to target validation data (with optional factor data paths).
+    :param source_vocabs: Source vocabulary and optional factor vocabularies.
+    :param target_vocabs: Target vocabulary and optional factor vocabularies.
+    :param max_source_len: Maximum source length above which training sample will be discarded.
+    :param max_target_len: Maximum target length above which training sample will be discarded.
+    :param shift_alignments: Bool flag for whether to shift target alignments one token forward.
+    :param dtype:
+    """
 
     train_iter = StdInParallelSampleIter(source_vocabs=source_vocabs,
                                          target_vocabs=target_vocabs,
@@ -1059,10 +1070,11 @@ def get_stdin_training_data_iters(source_vocabs,
                                          num_target_factors=len(target_vocabs),
                                          max_source_len=max_source_len,
                                          max_target_len=max_target_len,
+                                         shift_alignments=shift_alignments,
                                          dtype='int32')
 
-    #Oughta rename variables so their names make sense with the data type.
-
+    #Ye since we don't have a standard data iterator here, I gotta make up values for
+    #DataInfo, DataStatistics and DataConfig.
     data_info = DataInfo(sources=[],
                          targets=[],
                          source_vocabs=source_vocabs,
@@ -1071,7 +1083,7 @@ def get_stdin_training_data_iters(source_vocabs,
                          num_shards=1,
                          contains_alignment_matrix=True)
 
-    buckets = [(100, 100)]
+    buckets = [100, 100]
     #Prolly oughta make this bucketting algo smarter.
     pass
 
@@ -1081,22 +1093,22 @@ def get_stdin_training_data_iters(source_vocabs,
                                                    [69],
                                                    1)
 
-    data_statistics = DataStatistics(num_sents= 69,
-    num_discarded= 10,
-    num_tokens_source= 420,
-    num_tokens_target= 1337,
-    num_unks_source= 10,
-    num_unks_target= 10,
-    max_observed_len_source= 420,
-    max_observed_len_target= 420,
-    size_vocab_source= len(source_vocabs[0]),
-    size_vocab_target= len(target_vocabs[0]),
-    length_ratio_mean= 1,
-    length_ratio_std= 0.2,
-    buckets= buckets,
-    num_sents_per_bucket= [1337],
-    average_len_target_per_bucket= [69],
-    length_ratio_stats_per_bucket = None)
+    data_statistics = DataStatistics(num_sents=-1,
+    num_discarded=-1,
+    num_tokens_source=-1,
+    num_tokens_target=-1,
+    num_unks_source=-1,
+    num_unks_target=-1,
+    max_observed_len_source=-1,
+    max_observed_len_target=-1,
+    size_vocab_source=len(source_vocabs[0]),
+    size_vocab_target=len(target_vocabs[0]),
+    length_ratio_mean=1,
+    length_ratio_std=0.2,
+    buckets=buckets,
+    num_sents_per_bucket=[1337],
+    average_len_target_per_bucket=[69],
+    length_ratio_stats_per_bucket=None)
 
     config_data = DataConfig(data_statistics=data_statistics,
                              max_seq_len_source=max_source_len,
@@ -1119,7 +1131,7 @@ def get_stdin_training_data_iters(source_vocabs,
                                                target_vocabs=target_vocabs,
                                                max_seq_len_source=buckets[0][1] + 1,
                                                max_seq_len_target=buckets[0][0] + 1,
-                                               batch_size=300,
+                                               batch_size=batch_size,
                                                permute=False)
 
     return train_iter, validation_iter, config_data, data_info
@@ -2047,6 +2059,7 @@ class BaseParallelSampleIter:
         pass
 
 import json
+import time
 class StdInParallelSampleIter(BaseParallelSampleIter):
     def __init__(self,
                  source_vocabs: List[vocab.Vocab],
@@ -2057,6 +2070,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                  num_target_factors: int = 1,
                  max_source_len: int = 256,
                  max_target_len: int = 256,
+                 shift_alignments: bool = False,
                  dtype='int32') -> None:
         self.shift_target_factors = shift_target_factors
         self.batch_size = batch_size
@@ -2068,6 +2082,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         self.othertime = None
         self.max_source_len = max_source_len
         self.max_target_len = max_target_len
+        self.shift_alignments = shift_alignments
 
         self.len_exceed_warned = False
 
@@ -2082,15 +2097,14 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         return True
 
     def next(self) -> 'Batch':
+        st_time = time.time()
+        if self.othertime is not None:
+            print('Other: ', time.time() - st_time)
         if utils.is_distributed():
             batch_count = torch.distributed.get_world_size()
         else:
             batch_count = 1
 
-        import time
-        if self.othertime is not None:
-            pass
-            #print('Other time:', -self.othertime + time.time(), torch.distributed.get_rank())
 
         sttime = time.time()
         if utils.is_primary_worker():
@@ -2129,7 +2143,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                 bad_indexes.add(idx)
 
         for idx, alignment_matrix in enumerate(batch['alignment_matrix']):
-            am = parse_alignment_matrix_indices(alignment_matrix)
+            am = parse_alignment_matrix_indices(alignment_matrix, shift_alignments=self.shift_alignments)
             alignment_matrices.append(am)
 
         if (not self.len_exceed_warned) and len(bad_indexes) > 0:
@@ -2203,6 +2217,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         #print('Time for the full shabam:', time.time() - sttime, torch.distributed.get_rank())
 
         self.othertime=time.time()
+        print('Time for process: ', self.othertime - st_time)
 
         rank = torch.distributed.get_rank()
         batch = create_batch_from_parallel_sample(sources_tens,

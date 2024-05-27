@@ -388,6 +388,7 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
                                                                                                     args.batch_size,
                                                                                                     validation_sources,
                                                                                                     validation_targets,
+                                                                                                    shift_alignments=args.shift_alignments,
                                                                                                     max_source_len=max_seq_len_source,
                                                                                                     max_target_len=max_seq_len_target)
 
