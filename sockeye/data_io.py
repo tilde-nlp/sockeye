@@ -2215,7 +2215,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
             # print('Time for the full shabam:', time.time() - sttime, torch.distributed.get_rank())
 
             self.othertime = time.time()
-            print('Time for process: ', self.othertime - st_time, torch.distributed.get_rank())
+            print('Time for process: ', self.othertime - sttime, torch.distributed.get_rank())
 
             rank = torch.distributed.get_rank()
             self.betch = create_batch_from_parallel_sample(sources_tens,
