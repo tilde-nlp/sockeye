@@ -1083,7 +1083,7 @@ def get_stdin_training_data_iters(source_vocabs: vocab.Vocab,
                          num_shards=1,
                          contains_alignment_matrix=True)
 
-    buckets = [100, 100]
+    buckets = [[100, 100]]
     #Prolly oughta make this bucketting algo smarter.
     pass
 
