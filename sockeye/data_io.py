@@ -2094,9 +2094,6 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         pass
 
     def iter_next(self) -> bool:
-        return True
-
-    def next(self) -> 'Batch':
         st_time = time.time()
         if self.othertime is not None:
             print('Other: ', time.time() - self.othertime, torch.distributed.get_rank())
@@ -2220,13 +2217,15 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         print('Time for process: ', self.othertime - st_time, torch.distributed.get_rank())
 
         rank = torch.distributed.get_rank()
-        batch = create_batch_from_parallel_sample(sources_tens,
+        self.next_batch = create_batch_from_parallel_sample(sources_tens,
                                                   targets_tens,
                                                   label=labels,
                                                   prepended_source_length=None,
                                                   alignment_matrix=alignment_matrices)
+        return True
 
-        return batch
+    def next(self) -> 'Batch':
+        return self.next_batch
 
     def __next__(self):
         return self.next()  # pylint: disable=not-callable
