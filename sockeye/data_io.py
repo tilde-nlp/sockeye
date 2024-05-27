@@ -2099,7 +2099,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
     def next(self) -> 'Batch':
         st_time = time.time()
         if self.othertime is not None:
-            print('Other: ', time.time() - st_time)
+            print('Other: ', time.time() - self.othertime, torch.distributed.get_rank())
         if utils.is_distributed():
             batch_count = torch.distributed.get_world_size()
         else:
@@ -2217,7 +2217,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         #print('Time for the full shabam:', time.time() - sttime, torch.distributed.get_rank())
 
         self.othertime=time.time()
-        print('Time for process: ', self.othertime - st_time)
+        print('Time for process: ', self.othertime - st_time, torch.distributed.get_rank())
 
         rank = torch.distributed.get_rank()
         batch = create_batch_from_parallel_sample(sources_tens,
