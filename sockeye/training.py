@@ -272,7 +272,7 @@ class EarlyStoppingTrainer:
                     self._create_checkpoint(checkpoint_decoder, time_cost, train_iter, validation_iter)
                 break
 
-            did_grad_step = self._step(batch=train_iter.next())
+            did_grad_step = self._step(batch=train_iter.next(), iter=train_iter)
             checkpoint_up_to_date = checkpoint_up_to_date and not did_grad_step
 
             if not train_iter.iter_next():
@@ -346,7 +346,7 @@ class EarlyStoppingTrainer:
         if self.checkpoint_callback:
             self.checkpoint_callback(self.state.checkpoint)
 
-    def _forward_backward(self, batch: data_io.Batch, is_update_batch: bool = True):
+    def _forward_backward(self, batch: data_io.Batch, is_update_batch: bool = True, iter = None):
         """
         Performs forward-backward pass on a batch.
 
@@ -360,6 +360,7 @@ class EarlyStoppingTrainer:
             # Forward + loss
             sum_losses, loss_values, num_samples = self.model_object(batch.source, batch.source_length,
                                                                      batch.target, batch.target_length, batch.labels)
+        iter.bettch()
         # Backward
         if utils.using_deepspeed():
             # DeepSpeed backward. DeepSpeed handles all loss scaling.
@@ -386,7 +387,7 @@ class EarlyStoppingTrainer:
                 sum_losses.backward()  # type: ignore
         return loss_values, num_samples
 
-    def _step(self, batch: data_io.Batch) -> bool:
+    def _step(self, batch: data_io.Batch, iter) -> bool:
         self.state.batches += 1
         self.state.samples += batch.samples
         # We accumulate gradients over N=update_interval batches before running
@@ -401,7 +402,7 @@ class EarlyStoppingTrainer:
         # batch.
         with (self.model_object.model.no_sync() if utils.is_distributed() and not is_update_batch  # type: ignore
         and not utils.using_deepspeed() else utils.no_context()):
-            loss_values, num_samples = self._forward_backward(batch, is_update_batch)
+            loss_values, num_samples = self._forward_backward(batch, is_update_batch, iter)
 
         for loss_func, loss_value, num_samples in zip(self.loss_functions, loss_values, num_samples):
             loss_func.metric.update(loss_value.item(), num_samples.item())
