@@ -2228,6 +2228,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         return True
 
     def next(self) -> 'Batch':
+        self.bettch()
         betch = self.betch
         self.betch = None
         return betch
