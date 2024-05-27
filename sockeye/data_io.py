@@ -456,26 +456,6 @@ def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int
         # This is necessary because torch fails to handle the empty case.
         indexes_tens = torch.zeros([2, 0]).long()
 
-    # Check that all alignment indexes are within the bucket size limit.
-    # To be clear, this doesn't check that alignment matrices are valid by target and source length.
-    if indexes_tens.numel() != 0:
-        max_target_idx = indexes_tens[0, :].max()
-        if max_target_idx >= size[1]:
-            raise ValueError("During creation of alignment matrix tensor encountered target index (%d) that was "
-                             "outside target bounds (%d)!" % (max_target_idx, size[1]))
-        max_source_idx = indexes_tens[1, :].max()
-        if max_source_idx >= size[0]:
-            raise ValueError("During creation of alignment matrix tensor encountered source index (%d) that was "
-                             "outside source bounds (%d)!" % (max_source_idx, size[0]))
-        min_target_idx = indexes_tens[0, :].min()
-        if min_target_idx < 0:
-            raise ValueError("During creation of alignment matrix tensor encountered negative target index (%d)!" %
-                             min_target_idx)
-        min_source_idx = indexes_tens[1, :].min()
-        if min_source_idx < 0:
-            raise ValueError("During creation of alignment matrix tensor encountered negative source index (%d)!" %
-                             min_source_idx)
-
     # Calculate the normalized sparse values to be placed in the alignment matrix.
     # First count amount of alignments for each target token.
     amounts = [0] * size[1]
