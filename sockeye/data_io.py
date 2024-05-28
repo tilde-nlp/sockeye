@@ -462,7 +462,7 @@ def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int
     amounts[amounts == 0] = 1.0
 
     # Then calculate normalized value for each target token.
-    normalized_values = 1 / normalized_values
+    normalized_values = 1.0 / amounts
 
     # Then calculate the sparse values corresponding to each index pair.
     values = normalized_values[indexes_tens[1]]
