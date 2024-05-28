@@ -472,9 +472,9 @@ def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int
     tensor = coo_tensor.to_dense()
     tensor = tensor.reshape([1, -1])
     if not leave_dense:
-        coo_tensor = tensor.to_sparse_coo()
+        tensor = tensor.to_sparse_coo()
 
-    return coo_tensor
+    return tensor
 
 
 class RawParallelDatasetLoader:
