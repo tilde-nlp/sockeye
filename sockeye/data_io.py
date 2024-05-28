@@ -437,7 +437,7 @@ def get_prepended_token_length(ids: List[int], eop_id: int) -> int:
         return 0
 
 
-def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int]) -> torch.Tensor:
+def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int], leave_dense = False) -> torch.Tensor:
     """
     Creates a sparse alignment matrix tensor from a list of indexes.
     The matrix is normalized along source dimension to sum up to 1.
@@ -471,7 +471,8 @@ def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int
     coo_tensor = torch.sparse_coo_tensor(indexes_tens, values, (size[1], size[0]))
     tensor = coo_tensor.to_dense()
     tensor = tensor.reshape([1, -1])
-    coo_tensor = tensor.to_sparse_coo()
+    if not leave_dense:
+        coo_tensor = tensor.to_sparse_coo()
 
     return coo_tensor
 
@@ -2157,9 +2158,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
 
             bucket_size = (max_source_length, max_target_length)
 
-            alignment_matrices = [create_alignment_matrix(am, bucket_size) for am in alignment_matrices]
+            alignment_matrices = [create_alignment_matrix(am, bucket_size, leave_dense=True) for am in alignment_matrices]
             alignment_matrices = torch.cat(alignment_matrices, dim=0)
-            alignment_matrices = alignment_matrices.to_dense()
 
             source_factor_count = len(sources[0])
             target_factor_count = len(targets[0])
