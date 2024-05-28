@@ -450,12 +450,11 @@ def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int
            with 0s.
     """
     # Get indexes as tensor.
-    indexes_swapped = [(target_idx, source_idx) for source_idx, target_idx in indexes]
-    indexes_tens = torch.tensor(indexes_swapped).t().long()
+    indexes_tens = torch.tensor(indexes).t().long()
     if indexes_tens.numel() == 0:
         # This is necessary because torch fails to handle the empty case.
         indexes_tens = torch.zeros([2, 0]).long()
-
+    indexes_tens = torch.flip(indexes_tens)
     # Calculate the normalized sparse values to be placed in the alignment matrix.
     # First count amount of alignments for each target token.
     amounts = torch.bincount(indexes_tens[1], minlength=size[1])
