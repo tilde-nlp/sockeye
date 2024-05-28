@@ -458,18 +458,14 @@ def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int
 
     # Calculate the normalized sparse values to be placed in the alignment matrix.
     # First count amount of alignments for each target token.
-    amounts = [0] * size[1]
-    for _, target_idx in indexes:
-        amounts[target_idx] += 1
+    amounts = torch.bincount(indexes_tens[1], minlength=size[1])
+    amounts[amounts == 0] = 1.0
+
     # Then calculate normalized value for each target token.
-    normalized_values = [0.0] * size[1]
-    for target_idx, amount in enumerate(amounts):
-        if amount != 0:
-            normalized_values[target_idx] = 1 / amount
+    normalized_values = 1 / normalized_values
+
     # Then calculate the sparse values corresponding to each index pair.
-    values = []
-    for _, target_idx in indexes:
-        values.append(normalized_values[target_idx])
+    values = normalized_values[indexes_tens[1]]
 
     # Finally actually create the tensor.
     coo_tensor = torch.sparse_coo_tensor(indexes_tens, values, (size[1], size[0]))
