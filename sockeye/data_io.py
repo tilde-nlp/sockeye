@@ -454,7 +454,7 @@ def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int
     if indexes_tens.numel() == 0:
         # This is necessary because torch fails to handle the empty case.
         indexes_tens = torch.zeros([2, 0]).long()
-    indexes_tens = torch.flip(indexes_tens)
+    indexes_tens = torch.flip(indexes_tens, dim = 0)
     # Calculate the normalized sparse values to be placed in the alignment matrix.
     # First count amount of alignments for each target token.
     amounts = torch.bincount(indexes_tens[1], minlength=size[1])
