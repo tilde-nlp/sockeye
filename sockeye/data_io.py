@@ -2222,10 +2222,11 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                 json_batches.append(json_batch)
         else:
             json_batches = [None for _ in range(torch.distributed.get_world_size())]
+        json_batch = [None]
 
-        torch.distributed.broadcast_object_list(json_batches, src=0)
+        torch.distributed.scatter_object_list(json_batch, json_batches, src=0)
 
-        return json_batches[torch.distributed.get_rank()]
+        return json_batch
 
     def put_worker_batch(self, batch):
         """
