@@ -2184,7 +2184,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         self.len_exceed_warned = False
 
         self.pipe_manager, self.pipe_worker = multiprocessing.Pipe()
-        self.worker = multiprocessing.Process(args = (self.pipe_worker,
+        self.worker = multiprocessing.Process(target=batch_processing_worker, args=(self.pipe_worker,
                                               source_vocabs,
                                               target_vocabs,
                                               batch_size,
