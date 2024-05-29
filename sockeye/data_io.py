@@ -2046,7 +2046,7 @@ def batch_processing_worker(pipe,
                     shift_alignments,
                     dtype):
     while True:
-        json_batch = pipe.get()
+        json_batch = pipe.recv()
         sources = []
         targets = []
         source_lengths = []
@@ -2142,7 +2142,7 @@ def batch_processing_worker(pipe,
                 'alignment_matrix': alignment_matrices,
                 'labels': labels}
 
-        pipe.put(data)
+        pipe.send(data)
 
 import json
 import time
@@ -2221,13 +2221,13 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         """
         Sends batch to object's worker process.
         """
-        self.pipe_manager.put(batch)
+        self.pipe_manager.send(batch)
 
     def get_worker_batch(self):
         """
         Gets processed batch from object's worker process.
         """
-        result = self.pipe_manager.get()
+        result = self.pipe_manager.recv()
         self.batch = create_batch_from_parallel_sample(result['sources'],
                                                        result['targets'],
                                                        label=result['labels'],
