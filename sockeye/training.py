@@ -360,7 +360,6 @@ class EarlyStoppingTrainer:
             # Forward + loss
             sum_losses, loss_values, num_samples = self.model_object(batch.source, batch.source_length,
                                                                      batch.target, batch.target_length, batch.labels)
-        iter.bettch()
         # Backward
         if utils.using_deepspeed():
             # DeepSpeed backward. DeepSpeed handles all loss scaling.
