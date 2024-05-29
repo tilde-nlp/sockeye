@@ -2034,6 +2034,116 @@ class BaseParallelSampleIter:
     def load_state(self, fname: str):
         pass
 
+def batch_processing_worker(pipe,
+                    source_vocabs,
+                    target_vocabs,
+                    batch_size,
+                    shift_target_factors,
+                    num_source_factors,
+                    num_target_factors,
+                    max_source_len,
+                    max_target_len,
+                    shift_alignments,
+                    dtype):
+    while True:
+        json_batch = pipe.get()
+        sources = []
+        targets = []
+        source_lengths = []
+        target_lengths = []
+        alignment_matrices = []
+
+        batch = json.loads(json_batch)
+        bad_indexes = set()
+        for idx, sources_ in enumerate(batch['sources']):
+            src = sources_
+            src = [tokens2ids(s.split(' '), source_vocabs[factor_idx]) for factor_idx, s in enumerate(src)]
+            sources.append(src)
+            source_lengths.append(len(src[0]))
+            if source_lengths[-1] > max_source_len:
+                bad_indexes.add(idx)
+
+        for idx, targets_ in enumerate(batch['targets']):
+            trg = targets_
+            trg = [tokens2ids(t.split(' '), target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
+            targets.append(trg)
+            target_lengths.append(len(trg[0]) + 1)
+            if target_lengths[-1] > max_target_len:
+                bad_indexes.add(idx)
+
+        for idx, alignment_matrix in enumerate(batch['alignment_matrix']):
+            am = parse_alignment_matrix_indices(alignment_matrix, shift_alignments=shift_alignments)
+            alignment_matrices.append(am)
+
+        if len(bad_indexes) > 0:
+            # Throw out the bad data.
+            sources_good = []
+            targets_good = []
+            source_lengths_good = []
+            target_lengths_good = []
+            alignment_matrices_good = []
+            for idx in range(len(targets) - 1, - 1, - 1):
+                if idx not in bad_indexes:
+                    sources_good.append(sources[idx])
+                    targets_good.append(targets[idx])
+                    source_lengths_good.append(source_lengths[idx])
+                    target_lengths_good.append(target_lengths[idx])
+                    alignment_matrices_good.append(alignment_matrices[idx])
+            sources = sources_good
+            targets = targets_good
+            source_lengths = source_lengths_good
+            target_lengths = target_lengths_good
+            alignment_matrices = alignment_matrices_good
+
+        # Some computationally cheap data validation.
+        assert len(targets) == len(sources)
+        assert len(sources) == len(alignment_matrices)
+        batch_size = len(targets)
+
+        max_source_length = (np.array(source_lengths).max() + 7) // 8 * 8
+        max_target_length = (np.array(target_lengths).max() + 7) // 8 * 8
+        max_source_length = min(max(max_source_length, max_target_length), max_source_len)
+        max_target_length = max_source_length
+
+        bucket_size = (max_source_length, max_target_length)
+
+        alignment_matrices = [create_alignment_matrix(am, bucket_size, leave_dense=True) for am in alignment_matrices]
+        alignment_matrices = torch.cat(alignment_matrices, dim=0)
+
+        source_factor_count = len(sources[0])
+        target_factor_count = len(targets[0])
+
+        # Gotta figure out what pad_id's supposed to be.
+        sources_np = np.full([batch_size, max_source_length, source_factor_count], C.PAD_ID, dtype=dtype)
+        targets_np = np.full([batch_size, max_target_length + 1, target_factor_count], C.PAD_ID, dtype=dtype)
+        for sample_idx in range(batch_size):
+            for source_factor_idx in range(source_factor_count):
+                s = sources[sample_idx][source_factor_idx]
+                sources_np[sample_idx, 0:len(s), source_factor_idx] = s
+            for target_factor_idx in range(target_factor_count):
+                t = targets[sample_idx][target_factor_idx]
+                if target_factor_idx == 0 or shift_target_factors:
+                    t.insert(0, C.BOS_ID)
+                else:
+                    t.append(C.EOS_ID)
+                targets_np[sample_idx, 0:len(t), target_factor_idx] = t
+
+        sources_tens = torch.tensor(sources_np)
+        targets_tens = torch.tensor(targets_np)
+
+        targets_tens, labels = create_target_and_shifted_label_sequences(targets_tens)
+        alignment_matrices = alignment_matrices.reshape(-1, bucket_size[1], bucket_size[0])
+
+        # Gotta figure out prep_len.
+        pass  # Eh fuck this for now
+
+        data = {'sources': sources_tens,
+                'targets': targets_tens,
+                'alignment_matrix': alignment_matrices,
+                'labels': labels}
+
+        pipe.put(data)
+
 import json
 import time
 class StdInParallelSampleIter(BaseParallelSampleIter):
@@ -2059,9 +2169,25 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         self.max_source_len = max_source_len
         self.max_target_len = max_target_len
         self.shift_alignments = shift_alignments
-        self.betch = None
+        self.batch = None
 
         self.len_exceed_warned = False
+
+        self.pipe_manager, self.pipe_worker = multiprocessing.Pipe()
+        self.worker = multiprocessing.Process(args = (self.pipe_worker,
+                                              source_vocabs,
+                                              target_vocabs,
+                                              batch_size,
+                                              shift_target_factors,
+                                              num_source_factors,
+                                              num_target_factors,
+                                              max_source_len,
+                                              max_target_len,
+                                              shift_alignments,
+                                              dtype))
+        self.worker.start()
+        json_batch = self.get_json_batch()
+        self.put_worker_batch(json_batch)
 
     def __iter__(self):
         return self
@@ -2070,143 +2196,55 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         #Doesn't apply.
         pass
 
+    def get_json_batch(self):
+        """
+        Gets a json batch for all the torch.distributed processes.
+        """
+        if utils.is_distributed():
+            batch_count = torch.distributed.get_world_size()
+        else:
+            batch_count = 1
+
+        if utils.is_primary_worker():
+            json_batches = []
+            for batch_idx in range(batch_count):
+                json_batch = input()
+                json_batches.append(json_batch)
+        else:
+            json_batches = [None for _ in range(torch.distributed.get_world_size())]
+
+        torch.distributed.broadcast_object_list(json_batches, src=0)
+
+        return json_batches[torch.distributed.get_rank()]
+
+    def put_worker_batch(self, batch):
+        """
+        Sends batch to object's worker process.
+        """
+        self.pipe_manager.put(batch)
+
+    def get_worker_batch(self):
+        """
+        Gets processed batch from object's worker process.
+        """
+        result = self.pipe_manager.get()
+        self.batch = create_batch_from_parallel_sample(result['sources'],
+                                                       result['targets'],
+                                                       label=result['labels'],
+                                                       prepended_source_length=None,
+                                                       alignment_matrix=result['alignment_matrix'])
+
     def bettch(self):
-        if self.betch is None:
-            if self.othertime is not None:
-                print('Other: ', time.time() - self.othertime, torch.distributed.get_rank())
-            if utils.is_distributed():
-                batch_count = torch.distributed.get_world_size()
-            else:
-                batch_count = 1
-
-            sttime = time.time()
-            if utils.is_primary_worker():
-                json_batches = []
-                for batch_idx in range(batch_count):
-                    json_batch = input()
-                    json_batches.append(json_batch)
-            else:
-                json_batches = [None for _ in range(torch.distributed.get_world_size())]
-
-            torch.distributed.broadcast_object_list(json_batches, src=0)
-
-            sources = []
-            targets = []
-            source_lengths = []
-            target_lengths = []
-            alignment_matrices = []
-            json_batch = json_batches[torch.distributed.get_rank()]
-
-            batch = json.loads(json_batch)
-            bad_indexes = set()
-            for idx, sources_ in enumerate(batch['sources']):
-                src = sources_
-                src = [tokens2ids(s.split(' '), self.source_vocabs[factor_idx]) for factor_idx, s in enumerate(src)]
-                sources.append(src)
-                source_lengths.append(len(src[0]))
-                if source_lengths[-1] > self.max_source_len:
-                    bad_indexes.add(idx)
-
-            for idx, targets_ in enumerate(batch['targets']):
-                trg = targets_
-                trg = [tokens2ids(t.split(' '), self.target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
-                targets.append(trg)
-                target_lengths.append(len(trg[0]) + 1)
-                if target_lengths[-1] > self.max_target_len:
-                    bad_indexes.add(idx)
-
-            for idx, alignment_matrix in enumerate(batch['alignment_matrix']):
-                am = parse_alignment_matrix_indices(alignment_matrix, shift_alignments=self.shift_alignments)
-                alignment_matrices.append(am)
-
-            if (not self.len_exceed_warned) and len(bad_indexes) > 0:
-                self.len_exceed_warned = True
-                logger.warning(
-                    "Received batch whose source or target was longer than the maximum allowed source or target "
-                    "length. Either change your batch generating code, or --max-seq-len. Otherwise these sentences are dropped.")
-
-            if len(bad_indexes) > 0:
-                # Throw out the bad data.
-                sources_good = []
-                targets_good = []
-                source_lengths_good = []
-                target_lengths_good = []
-                alignment_matrices_good = []
-                for idx in range(len(targets) - 1, - 1, - 1):
-                    if idx not in bad_indexes:
-                        sources_good.append(sources[idx])
-                        targets_good.append(targets[idx])
-                        source_lengths_good.append(source_lengths[idx])
-                        target_lengths_good.append(target_lengths[idx])
-                        alignment_matrices_good.append(alignment_matrices[idx])
-                sources = sources_good
-                targets = targets_good
-                source_lengths = source_lengths_good
-                target_lengths = target_lengths_good
-                alignment_matrices = alignment_matrices_good
-
-            # Some computationally cheap data validation.
-            assert len(targets) == len(sources)
-            assert len(sources) == len(alignment_matrices)
-            batch_size = len(targets)
-
-            max_source_length = (np.array(source_lengths).max() + 7) // 8 * 8
-            max_target_length = (np.array(target_lengths).max() + 7) // 8 * 8
-            max_source_length = min(max(max_source_length, max_target_length), self.max_source_len)
-            max_target_length = max_source_length
-
-            bucket_size = (max_source_length, max_target_length)
-
-            alignment_matrices = [create_alignment_matrix(am, bucket_size, leave_dense=True) for am in alignment_matrices]
-            alignment_matrices = torch.cat(alignment_matrices, dim=0)
-
-            source_factor_count = len(sources[0])
-            target_factor_count = len(targets[0])
-
-            # Gotta figure out what pad_id's supposed to be.
-            sources_np = np.full([batch_size, max_source_length, source_factor_count], C.PAD_ID, dtype=self.dtype)
-            targets_np = np.full([batch_size, max_target_length + 1, target_factor_count], C.PAD_ID, dtype=self.dtype)
-            for sample_idx in range(batch_size):
-                for source_factor_idx in range(source_factor_count):
-                    s = sources[sample_idx][source_factor_idx]
-                    sources_np[sample_idx, 0:len(s), source_factor_idx] = s
-                for target_factor_idx in range(target_factor_count):
-                    t = targets[sample_idx][target_factor_idx]
-                    if target_factor_idx == 0 or self.shift_target_factors:
-                        t.insert(0, C.BOS_ID)
-                    else:
-                        t.append(C.EOS_ID)
-                    targets_np[sample_idx, 0:len(t), target_factor_idx] = t
-
-            sources_tens = torch.tensor(sources_np)
-            targets_tens = torch.tensor(targets_np)
-
-            targets_tens, labels = create_target_and_shifted_label_sequences(targets_tens)
-            alignment_matrices = alignment_matrices.reshape(-1, bucket_size[1], bucket_size[0])
-
-            # Gotta figure out prep_len.
-            pass  # Eh fuck this for now
-
-            # print('Time for the full shabam:', time.time() - sttime, torch.distributed.get_rank())
-
-            self.othertime = time.time()
-            print('Time for process: ', self.othertime - sttime, torch.distributed.get_rank())
-
-            rank = torch.distributed.get_rank()
-            self.betch = create_batch_from_parallel_sample(sources_tens,
-                                                      targets_tens,
-                                                      label=labels,
-                                                      prepended_source_length=None,
-                                                      alignment_matrix=alignment_matrices)
+        pass
 
     def iter_next(self) -> bool:
         return True
 
     def next(self) -> 'Batch':
-        self.bettch()
-        betch = self.betch
-        self.betch = None
-        return betch
+        self.get_worker_batch()
+        json_batch = self.get_json_batch()
+        self.put_worker_batch(json_batch)
+        return self.batch
 
     def __next__(self):
         return self.next()  # pylint: disable=not-callable
