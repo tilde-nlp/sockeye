@@ -2251,14 +2251,9 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         return True
 
     def next(self) -> 'Batch':
-        sttime = time.time()
-        if self.othertime is not None:
-            print('Other:', sttime - self.othertime)
         self.get_worker_batch()
         json_batch = self.get_json_batch()
         self.put_worker_batch(json_batch)
-        self.othertime = time.time()
-        print('Process:', self.othertime - sttime)
         return self.batch
 
 
