@@ -2241,6 +2241,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         return True
 
     def next(self) -> 'Batch':
+        print(self.worker.is_alive())
         sttime = time.time()
         if self.othertime is not None:
             print('Other:', sttime - self.othertime)
