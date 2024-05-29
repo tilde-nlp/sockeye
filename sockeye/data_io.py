@@ -2226,7 +2226,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
 
         torch.distributed.scatter_object_list(json_batch, json_batches, src=0)
 
-        return json_batch
+        return json_batch[0]
 
     def put_worker_batch(self, batch):
         """
