@@ -2058,7 +2058,7 @@ def batch_processing_worker(pipe,
 
             batch = json.loads(json_batch)
             bad_indexes = set()
-            for idx, sources_ in enumerate(batch['sources']):
+            for idx, sources_ in enumerate(batch[C.JSON_SOURCES]):
                 src = sources_
                 src = [tokens2ids(s.split(' '), source_vocabs[factor_idx]) for factor_idx, s in enumerate(src)]
                 sources.append(src)
@@ -2066,7 +2066,7 @@ def batch_processing_worker(pipe,
                 if source_lengths[-1] > max_source_len:
                     bad_indexes.add(idx)
 
-            for idx, targets_ in enumerate(batch['targets']):
+            for idx, targets_ in enumerate(batch[C.JSON_TARGETS]):
                 trg = targets_
                 trg = [tokens2ids(t.split(' '), target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
                 targets.append(trg)
@@ -2074,7 +2074,7 @@ def batch_processing_worker(pipe,
                 if target_lengths[-1] > max_target_len:
                     bad_indexes.add(idx)
 
-            for idx, alignment_matrix in enumerate(batch['alignment_matrix']):
+            for idx, alignment_matrix in enumerate(batch[C.JSON_ALIGNMENT_MATRIX]):
                 am = parse_alignment_matrix_indices(alignment_matrix, shift_alignments=shift_alignments)
                 alignment_matrices.append(am)
 
@@ -2140,10 +2140,10 @@ def batch_processing_worker(pipe,
             # Gotta figure out prep_len.
             pass  # Eh fuck this for now
 
-            data = {'sources': sources_tens,
-                    'targets': targets_tens,
-                    'alignment_matrix': alignment_matrices,
-                    'labels': labels}
+            data = {C.JSON_SOURCES: sources_tens,
+                    C.JSON_TARGETS: targets_tens,
+                    C.JSON_ALIGNMENT_MATRIX: alignment_matrices,
+                    C.TARGETS_LABEL_NAME: labels}
 
             pipe.send(data)
     except Exception as e:
@@ -2175,7 +2175,6 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         self.source_vocabs = source_vocabs
         self.target_vocabs = target_vocabs
         self.dtype = dtype
-        self.othertime = None
         self.max_source_len = max_source_len
         self.max_target_len = max_target_len
         self.shift_alignments = shift_alignments
@@ -2238,11 +2237,11 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         Gets processed batch from object's worker process.
         """
         result = self.pipe_manager.recv()
-        self.batch = create_batch_from_parallel_sample(result['sources'],
-                                                       result['targets'],
-                                                       label=result['labels'],
+        self.batch = create_batch_from_parallel_sample(result[C.JSON_SOURCES],
+                                                       result[C.JSON_TARGETS],
+                                                       label=result[C.TARGETS_LABEL_NAME],
                                                        prepended_source_length=None,
-                                                       alignment_matrix=result['alignment_matrix'])
+                                                       alignment_matrix=result[C.JSON_ALIGNMENT_MATRIX])
 
     def bettch(self):
         pass

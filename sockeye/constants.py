@@ -112,6 +112,7 @@ LENRATIO_LABEL_NAME = "length_ratio_label"
 LENRATIO_NAME = "length_ratio"
 ALIGNMENT_MATRIX_LABEL = 'alignment_matrix_label'
 ATTENTION_NAME = "attention"
+TARGETS_LABEL_NAME = 'targets_label'
 
 LOGITS_NAME = "logits"
 FACTOR_LOGITS_NAME = "factor%d_logits"
@@ -146,6 +147,11 @@ JSON_KEEP_TARGET_PREFIX_KEY = "keep_target_prefix"
 JSON_RESTRICT_LEXICON_KEY = "restrict_lexicon"
 JSON_CONSTRAINTS_KEY = "constraints"
 JSON_AVOID_KEY = "avoid"
+
+#data_io used for the json input of the stdin training data iterator
+JSON_SOURCES = "sources"
+JSON_TARGETS = "targets"
+JSON_ALIGNMENT_MATRIX = "alignment_matrix"
 
 VERSION_NAME = "version"
 CONFIG_NAME = "config"
