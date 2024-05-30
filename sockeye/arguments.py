@@ -458,6 +458,9 @@ def add_training_data_args(params, required=False):
                         help='If used, shifts alignments in training, such that the current target '
                              'target token decoding step predicts the alignment of the previous target token, '
                              'not the current one. Defaults to no shift.')
+    params.add_argument('--stdin-input',
+                        action='store_true',
+                        help='Whether to read input from stdin rather than files or prepared data files.')
 
 
 def add_validation_data_params(params):
@@ -517,10 +520,6 @@ def add_bucketing_args(params):
     params.add_argument('--no-bucketing',
                         action='store_true',
                         help='Disable bucketing: always unroll the graph to --max-seq-len. Default: %(default)s.')
-
-    params.add_argument('--stdin-input',
-                        action='store_true',
-                        help='Whether to read input from stdin.')
 
     params.add_argument('--bucket-width',
                         type=int_greater_or_equal(1),

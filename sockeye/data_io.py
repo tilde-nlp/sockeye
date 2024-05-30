@@ -438,7 +438,7 @@ def get_prepended_token_length(ids: List[int], eop_id: int) -> int:
         return 0
 
 
-def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int], leave_dense = False) -> torch.Tensor:
+def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int], dense: bool = False) -> torch.Tensor:
     """
     Creates a sparse alignment matrix tensor from a list of indexes.
     The matrix is normalized along source dimension to sum up to 1.
@@ -446,32 +446,40 @@ def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int
     :param indexes: List of alignment indexes. In each tuple, the first number is the source token index and the
                     second number is the target token index.
     :param size: Tuple (source length, target length).
+    :param dense: If set to true, returns dense matrix of shape [target length, source length].
+                  If left to the default (false) return alignment matrix as COO sparse tensor.
     :return: Sparse COO tensor of shape [1, target length * source length] reshaped from [target length, source length].
     :note: If a target token has no source token alignments, the row (pre-reshaping) of this target token will be filled
            with 0s.
+    :note: The dense parameter was added because when training from stdin we can skip the compression to COO,
+           because we'll only have a few batches in memory at any point in time anyway.
     """
-    # Get indexes as tensor.
     indexes_tens = torch.tensor(indexes).t().long()
     if indexes_tens.numel() == 0:
         # This is necessary because torch fails to handle the empty case.
         indexes_tens = torch.zeros([2, 0]).long()
+    # The result here is a tensor of shape [2, alignment count in sentence].
+    # [0, :] are source coordinates of alignments.
+    # [1, :] are target coordinates of alignments.
     indexes_tens = torch.flip(indexes_tens, [0])
-    # Calculate the normalized sparse values to be placed in the alignment matrix.
-    # First count amount of alignments for each target token.
-    amounts = torch.bincount(indexes_tens[1], minlength=size[1])
-    amounts[amounts == 0] = 1.0
 
-    # Then calculate normalized value for each target token.
+    # Count up alignment for each target token.
+    amounts = torch.bincount(indexes_tens[1], minlength=size[1])
+
+    # Calculate normalize alignment matrix values for each target token.
+    # But first get rid of division by zero.
+    # Can be any value since, we don't have alignments for that anyway.
+    amounts[amounts == 0] = 1.0
     normalized_values = 1.0 / amounts
 
-    # Then calculate the sparse values corresponding to each index pair.
+    # Get normalized values for each alignment.
     values = normalized_values[indexes_tens[1]]
 
     # Finally actually create the tensor.
-    coo_tensor = torch.sparse_coo_tensor(indexes_tens, values, (size[1], size[0]))
-    tensor = coo_tensor.to_dense()
-    tensor = tensor.reshape([1, -1])
-    if not leave_dense:
+    tensor = torch.zeros(size, dtype=torch.float32)
+    tensor[indexes_tens[1], indexes_tens[0]] = values
+    if not dense:
+        tensor = tensor.reshape([1, -1])
         tensor = tensor.to_sparse_coo()
 
     return tensor
@@ -1017,15 +1025,20 @@ def get_prepared_data_iters(prepared_data_dir: str,
     return train_iter, validation_iter, config_data, data_info, source_vocabs, target_vocabs
 
 
-def get_stdin_training_data_iters(source_vocabs: vocab.Vocab,
-                                  target_vocabs: vocab.Vocab,
+def get_stdin_training_data_iters(source_vocabs: List[vocab.Vocab],
+                                  target_vocabs: List[vocab.Vocab],
                                   batch_size: int,
                                   validation_sources: List[str],
                                   validation_targets: List[str],
-                                  max_source_len: int = 256,
-                                  max_target_len: int = 256,
+                                  source_vocab_paths: List[str],
+                                  target_vocab_paths: List[str],
+                                  max_source_len: int = 128,
+                                  max_target_len: int = 128,
                                   shift_alignments: bool = False,
-                                  dtype='int32'):
+                                  dtype='int32') -> Tuple['BaseParallelSampleIter',
+                                                          'BaseParallelSampleIter',
+                                                          'DataConfig',
+                                                          'DataInfo']:
     """
     Function returns a data iterator that reads from stdin, and a validation data iterator.
 
@@ -1037,33 +1050,35 @@ def get_stdin_training_data_iters(source_vocabs: vocab.Vocab,
     :param max_source_len: Maximum source length above which training sample will be discarded.
     :param max_target_len: Maximum target length above which training sample will be discarded.
     :param shift_alignments: Bool flag for whether to shift target alignments one token forward.
-    :param dtype:
+    :param dtype: TODO
     """
 
     train_iter = StdInParallelSampleIter(source_vocabs=source_vocabs,
                                          target_vocabs=target_vocabs,
                                          batch_size=batch_size // 10,
-                                         num_source_factors=len(source_vocabs),
-                                         num_target_factors=len(target_vocabs),
                                          max_source_len=max_source_len,
                                          max_target_len=max_target_len,
                                          shift_alignments=shift_alignments,
                                          dtype='int32')
 
-    #Ye since we don't have a standard data iterator here, I gotta make up values for
-    #DataInfo, DataStatistics and DataConfig.
+    # Not sure how to set all the parameters for DataInfo DataConfig and DataStatistics,
+    # since we don't actually know anything about the data before we start streaming it.
+    # I've just made values up where necessary.
     data_info = DataInfo(sources=[],
                          targets=[],
-                         source_vocabs=source_vocabs,
-                         target_vocabs=target_vocabs,
+                         source_vocabs=source_vocab_paths,
+                         target_vocabs=target_vocab_paths,
                          shared_vocab=False,
                          num_shards=1,
                          contains_alignment_matrix=True)
 
-    buckets = [[100, 100]]
+    # Buckets are kinda irrelevant since we just run the batches we get from stdin.
+    # We expect the input to already be bucketed if the user cares about that.
+    # Well ok I guess buckets ~slightly matter, because for some reason I don't understand torch.trace works
+    # reallly slow every time you change the bucket size.
+    buckets = [(100, 100)]
     #Prolly oughta make this bucketting algo smarter.
     pass
-
     bucket_batch_sizes = define_bucket_batch_sizes(buckets,
                                                    batch_size,
                                                    C.BATCH_TYPE_MAX_WORD,
@@ -2036,28 +2051,43 @@ class BaseParallelSampleIter:
         pass
 
 import traceback
-def batch_processing_worker(pipe,
-                    source_vocabs,
-                    target_vocabs,
-                    batch_size,
-                    shift_target_factors,
-                    num_source_factors,
-                    num_target_factors,
-                    max_source_len,
-                    max_target_len,
-                    shift_alignments,
+import sys
+def batch_processing_worker(pipe: multiprocessing.Pipe,
+                    source_vocabs: List[Dict[str, int]],
+                    target_vocabs: List[Dict[str, int]],
+                    shift_target_factors: bool,
+                    max_source_len: int,
+                    max_target_len: int,
+                    shift_alignments: bool,
                     dtype):
+    """
+    Separate process that receives raw batches of data and returns already prepared tensors, ready to be packed
+    into a Batch.
+
+    :param source_vocabs: Vocabularies used to turn source and source factor strings into tensors of ints.
+    :param target_vocabs: Vocabularies used to turn target and target factor strings into tensors of ints.
+    :param shift_target_factors: Bool flag for whether to shift target factors one target token forward.
+    :param max_source_len: Maximum source length beyond which training samples get discarded.
+    :param max_target_len: Maximum target length beyond which training samples get discarded.
+    :param shift_alignments: Bool flag for whether to shift alignment matrices one target token forward.
+    :param dtype: ???
+    """
     try:
         while True:
+            # Get the batch with raw source, target and alignment strings.
             json_batch = pipe.recv()
+            batch = json.loads(json_batch)
+
             sources = []
             targets = []
             source_lengths = []
             target_lengths = []
-            alignment_matrices = []
+            alignment_batch = []
 
-            batch = json.loads(json_batch)
+            # Need to keep track of indexes we discard because of exceeding max source/target lengths.
             bad_indexes = set()
+
+            # Tokenize sources.
             for idx, sources_ in enumerate(batch[C.JSON_SOURCES]):
                 src = sources_
                 src = [tokens2ids(s.split(' '), source_vocabs[factor_idx]) for factor_idx, s in enumerate(src)]
@@ -2066,6 +2096,7 @@ def batch_processing_worker(pipe,
                 if source_lengths[-1] > max_source_len:
                     bad_indexes.add(idx)
 
+            # Tokenize targets.
             for idx, targets_ in enumerate(batch[C.JSON_TARGETS]):
                 trg = targets_
                 trg = [tokens2ids(t.split(' '), target_vocabs[factor_idx]) for factor_idx, t in enumerate(trg)]
@@ -2074,9 +2105,10 @@ def batch_processing_worker(pipe,
                 if target_lengths[-1] > max_target_len:
                     bad_indexes.add(idx)
 
-            for idx, alignment_matrix in enumerate(batch[C.JSON_ALIGNMENT_MATRIX]):
-                am = parse_alignment_matrix_indices(alignment_matrix, shift_alignments=shift_alignments)
-                alignment_matrices.append(am)
+            # Parse alignments.
+            for idx, alignments in enumerate(batch[C.JSON_ALIGNMENT_MATRIX]):
+                parsed_alignments = parse_alignment_matrix_indices(alignments, shift_alignments=shift_alignments)
+                alignment_batch.append(parsed_alignments)
 
             if len(bad_indexes) > 0:
                 # Throw out the bad data.
@@ -2084,41 +2116,44 @@ def batch_processing_worker(pipe,
                 targets_good = []
                 source_lengths_good = []
                 target_lengths_good = []
-                alignment_matrices_good = []
+                alignment_batch_good = []
                 for idx in range(len(targets) - 1, - 1, - 1):
                     if idx not in bad_indexes:
                         sources_good.append(sources[idx])
                         targets_good.append(targets[idx])
                         source_lengths_good.append(source_lengths[idx])
                         target_lengths_good.append(target_lengths[idx])
-                        alignment_matrices_good.append(alignment_matrices[idx])
+                        alignment_batch_good.append(alignment_batch[idx])
                 sources = sources_good
                 targets = targets_good
                 source_lengths = source_lengths_good
                 target_lengths = target_lengths_good
-                alignment_matrices = alignment_matrices_good
+                alignment_batch = alignment_batch_good
 
             # Some computationally cheap data validation.
             assert len(targets) == len(sources)
-            assert len(sources) == len(alignment_matrices)
+            assert len(sources) == len(alignment_batch)
             batch_size = len(targets)
 
+            # There's this odd behaviour with (I think) torch tracing.
+            # The problem's that every time it encounters a new bucket size it gets confused as all hell and runs
+            # slow on that batch.
+            # For this reason I added bucketing every 8 tokens.
             max_source_length = (np.array(source_lengths).max() + 7) // 8 * 8
             max_target_length = (np.array(target_lengths).max() + 7) // 8 * 8
-            max_source_length = min(max(max_source_length, max_target_length), max_source_len)
-            max_target_length = max_source_length
+            max_length = min(max(max_source_length, max_target_length), max_source_length)
+            bucket_size = (max_length, max_length)
 
-            bucket_size = (max_source_length, max_target_length)
+            # Turn alignment indexes into proper alignment matrix tensors.
+            alignment_matrices = [create_alignment_matrix(alignment_batch, bucket_size, dense=True)
+                                  for alignments in alignment_batch]
+            alignment_matrices = torch.cat(alignment_batch, dim=0)
 
-            alignment_matrices = [create_alignment_matrix(am, bucket_size, leave_dense=True) for am in alignment_matrices]
-            alignment_matrices = torch.cat(alignment_matrices, dim=0)
-
+            #Write source, target and factor tokens to numpy arrays.
             source_factor_count = len(sources[0])
             target_factor_count = len(targets[0])
-
-            # Gotta figure out what pad_id's supposed to be.
-            sources_np = np.full([batch_size, max_source_length, source_factor_count], C.PAD_ID, dtype=dtype)
-            targets_np = np.full([batch_size, max_target_length + 1, target_factor_count], C.PAD_ID, dtype=dtype)
+            sources_np = np.full([batch_size, max_length, source_factor_count], C.PAD_ID, dtype=dtype)
+            targets_np = np.full([batch_size, max_length + 1, target_factor_count], C.PAD_ID, dtype=dtype)
             for sample_idx in range(batch_size):
                 for source_factor_idx in range(source_factor_count):
                     s = sources[sample_idx][source_factor_idx]
@@ -2133,9 +2168,7 @@ def batch_processing_worker(pipe,
 
             sources_tens = torch.tensor(sources_np)
             targets_tens = torch.tensor(targets_np)
-
             targets_tens, labels = create_target_and_shifted_label_sequences(targets_tens)
-            alignment_matrices = alignment_matrices.reshape(-1, bucket_size[1], bucket_size[0])
 
             # Gotta figure out prep_len.
             pass  # Eh fuck this for now
@@ -2146,55 +2179,52 @@ def batch_processing_worker(pipe,
                     C.TARGETS_LABEL_NAME: labels}
 
             pipe.send(data)
+
+    # Log errors if any arise.
     except Exception as e:
         tb = traceback.format_exc()
         import random
-        with open(str(random.randint(0, 100) + '.txt'), 'w') as f:
+        with open('batch_processor_error_log_' + str(random.randint(0, 100) + '.txt'), 'w') as f:
             f.write(tb)
-        halt()
+        sys.exit()
 
 
 import json
 import time
 class StdInParallelSampleIter(BaseParallelSampleIter):
+    """
+    Prepares batches on the fly by reading them from stdin.
+
+    :param source_vocabs: Vocabularies used to turn source and source factor strings into tensors of ints.
+    :param target_vocabs: Vocabularies used to turn target and target factor strings into tensors of ints.
+    :param shift_target_factors: Bool flag for whether to shift target factors one target token forward.
+    :param max_source_len: Maximum source length beyond which training samples get discarded.
+    :param max_target_len: Maximum target length beyond which training samples get discarded.
+    :param shift_alignments: Bool flag for whether to shift alignment matrices one target token forward.
+    :param dtype: ???
+    """
     def __init__(self,
                  source_vocabs: List[vocab.Vocab],
                  target_vocabs: List[vocab.Vocab],
                  batch_size: int,
                  shift_target_factors: bool = C.TARGET_FACTOR_SHIFT,
-                 num_source_factors: int = 1,
-                 num_target_factors: int = 1,
                  max_source_len: int = 256,
                  max_target_len: int = 256,
                  shift_alignments: bool = False,
                  dtype='int32') -> None:
-        self.shift_target_factors = shift_target_factors
-        self.batch_size = batch_size
-        self.num_target_factors = num_target_factors
-        self.num_source_factors = num_source_factors
-        self.source_vocabs = source_vocabs
-        self.target_vocabs = target_vocabs
-        self.dtype = dtype
-        self.max_source_len = max_source_len
-        self.max_target_len = max_target_len
-        self.shift_alignments = shift_alignments
-        self.batch = None
-
-        self.len_exceed_warned = False
-
-        self.pipe_manager, self.pipe_worker = multiprocessing.Pipe()
+        # Create a worker process who will do the dirty work of turing strings into usable batches.
+        self.pipe_manager, self.pipe_worker = multiprocessing.Pipe() # For communication.
         self.worker = multiprocessing.Process(target=batch_processing_worker, args=(self.pipe_worker,
                                               source_vocabs,
                                               target_vocabs,
-                                              batch_size,
                                               shift_target_factors,
-                                              num_source_factors,
-                                              num_target_factors,
                                               max_source_len,
                                               max_target_len,
                                               shift_alignments,
                                               dtype))
         self.worker.start()
+
+        #Give out a batch to the worker already, so hopefully it's done by the time we actually need a batch.
         json_batch = self.get_json_batch()
         self.put_worker_batch(json_batch)
 
@@ -2202,12 +2232,12 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         return self
 
     def reset(self):
-        #Doesn't apply.
+        #This function doesn't apply.
         pass
 
     def get_json_batch(self):
         """
-        Gets a json batch for all the torch.distributed processes.
+        Gets a json batch for all the torch.distributed processes (if in distributed mode at all).
         """
         if utils.is_distributed():
             batch_count = torch.distributed.get_world_size()
@@ -2236,35 +2266,35 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         """
         Gets processed batch from object's worker process.
         """
-        result = self.pipe_manager.recv()
-        self.batch = create_batch_from_parallel_sample(result[C.JSON_SOURCES],
-                                                       result[C.JSON_TARGETS],
-                                                       label=result[C.TARGETS_LABEL_NAME],
-                                                       prepended_source_length=None,
-                                                       alignment_matrix=result[C.JSON_ALIGNMENT_MATRIX])
-
-    def bettch(self):
-        pass
+        return self.pipe_manager.recv()
 
     def iter_next(self) -> bool:
         return True
 
     def next(self) -> 'Batch':
-        self.get_worker_batch()
+        # Give out a batch
         json_batch = self.get_json_batch()
         self.put_worker_batch(json_batch)
-        return self.batch
+
+        # Take the results.
+        batch = self.get_worker_batch()
+        batch = create_batch_from_parallel_sample(batch[C.JSON_SOURCES],
+                                                  batch[C.JSON_TARGETS],
+                                                  label=batch[C.TARGETS_LABEL_NAME],
+                                                  prepended_source_length=None,
+                                                  alignment_matrix=batch[C.JSON_ALIGNMENT_MATRIX])
+        return batch
 
 
     def __next__(self):
         return self.next()  # pylint: disable=not-callable
 
     def save_state(self, fname: str):
-        #Doesn't apply.
+        #This function doesn't apply.
         pass
 
     def load_state(self, fname: str):
-        #Doesn't apply.
+        #This function doesn't apply.
         pass
 
 class BatchedRawParallelSampleIter(BaseParallelSampleIter):

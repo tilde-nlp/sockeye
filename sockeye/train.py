@@ -263,8 +263,7 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
                                  max_seq_len_target: int,
                                  shared_vocab: bool,
                                  resume_training: bool,
-                                 output_folder: str,
-                                 device) -> Tuple['data_io.BaseParallelSampleIter',
+                                 output_folder: str) -> Tuple['data_io.BaseParallelSampleIter',
                                                               'data_io.BaseParallelSampleIter',
                                                               'data_io.DataConfig',
                                                               'data_io.DataInfo',
@@ -361,12 +360,14 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
         return train_iter, validation_iter, data_config, data_info, source_vocabs, target_vocabs
 
     elif args.stdin_input:
+        # Get vocabulary paths.
         source_factor_vocab_paths = [args.source_factor_vocabs[i] if i < len(args.source_factor_vocabs)
                                      else None for i in range(len(args.source_factors))]
         source_vocab_paths = [args.source_vocab] + source_factor_vocab_paths
         target_factor_vocab_paths = [args.target_factor_vocabs[i] if i < len(args.target_factor_vocabs)
                                      else None for i in range(len(args.target_factors))]
         target_vocab_paths = [args.target_vocab] + target_factor_vocab_paths
+        # Verify we have all the vocabularies we need.
         for vocab_path in source_vocab_paths:
             if vocab_path is None:
                 raise ValueError('If training from stdin, source and all source factors require vocabularies. ')
@@ -375,6 +376,7 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
             if vocab_path is None:
                 raise ValueError('If training from stdin, target and all target factors require vocabularies. ')
 
+        # Load vocabularies.
         source_vocabs = [vocab.vocab_from_json(vocab_path) for vocab_path in source_vocab_paths]
         target_vocabs = [vocab.vocab_from_json(vocab_path) for vocab_path in target_vocab_paths]
 
@@ -388,6 +390,8 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
                                                                                                     args.batch_size,
                                                                                                     validation_sources,
                                                                                                     validation_targets,
+                                                                                                    source_vocab_paths=source_vocab_paths,
+                                                                                                    target_vocab_paths=target_factor_vocab_paths,
                                                                                                     shift_alignments=args.shift_alignments,
                                                                                                     max_source_len=max_seq_len_source,
                                                                                                     max_target_len=max_seq_len_target)
@@ -1097,8 +1101,7 @@ def train(args: argparse.Namespace, custom_metrics_logger: Optional[Callable] = 
         max_seq_len_target=max_seq_len_target,
         shared_vocab=use_shared_vocab(args),
         resume_training=resume_training,
-        output_folder=output_folder,
-        device=device)
+        output_folder=output_folder)
 
     if max_seq_len_source != config_data.max_seq_len_source:
         logger.info("Maximum source length determined by prepared data. Using %d instead of %d",
