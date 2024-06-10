@@ -270,39 +270,6 @@ def load_or_create_vocab(data: Iterable[str], vocab_path: Optional[str], num_wor
     else:
         return vocab_from_json(vocab_path)
 
-def load_vocabs(source_vocab_paths: List[str],
-                target_vocab_paths: List[str],
-                source_factor_vocab_same_as_source: Optional[List[bool] or bool],
-                target_factor_vocab_same_as_target: Optional[List[bool] or bool],
-                source_factor_count: int,
-                target_factor_count: int,
-                shared_vocab: bool):
-    """
-    Loads vocabularies for source/target and their factors.
-
-    :param source_vocab_paths: List containing [path to source vocab, path to 1st source factor, path to 2nd...].
-    :param target_vocab_paths: List containing [path to target vocab, path to 1st target factor, path to 2nd...].
-    :param source_factor_vocab_same_as_source: Flags for whether a source factor uses the same vocabulary as source.
-                                               Accepts list of bools of equal length to source factor count,
-                                               a single bool, an empty list, or None.
-                                               If it's a single bool, it's broadcast to the amount of factors.
-                                               If it's an empty list, defaults to False for all factors.
-                                               If it's None, defaults to False for all factors.
-    :param target_factor_vocab_same_as_target: Works analogously as source_factor_vocab_same_as_source, but
-                                               for target and target factors.
-    :param source_factor_count: Amount of source factors (excluding source itself).
-    :param target_factor_count: Amount of target factors (excluding target itself).
-    :param shared_vocab: Bool flag for whether the source and the target use the same vocabulary.
-                         (Note that this doesn't affect source factor and target factor vocabularies).
-    :return: Tuple with two elements - list of source (and source factor) vocabularies and list of target (and target
-             factor vocabularies).
-    :note: Unlike load_or_create_vocabs, this function doesn't create vocabularies.
-    :note: source_vocab_paths are aligned with positions where source_factor_vocab_same_as_source is False.
-           And if
-           len(source_vocab_paths) + number of False values in source_factor_vocab_same_as_source (after broadcasting)
-           does not equal source_factor_count, function will throw an error.
-    """
-    pass
 
 def load_or_create_vocabs(shard_source_paths: Iterable[Iterable[str]],
                           shard_target_paths: Iterable[Iterable[str]],
