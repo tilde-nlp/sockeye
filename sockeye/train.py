@@ -370,18 +370,18 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
         # Verify we have all the vocabularies we need.
         for vocab_path in source_vocab_paths:
             if vocab_path is None:
-                raise ValueError('If training from stdin, source and all source factors require vocabularies. ')
+                raise ValueError('If training from stdin, source and all source factors require specifying '
+                                 'vocabularies. ')
                 #Oughta add instruction to define vocabularies.
         for vocab_path in target_vocab_paths:
             if vocab_path is None:
-                raise ValueError('If training from stdin, target and all target factors require vocabularies. ')
+                raise ValueError('If training from stdin, target and all target factors require specifying '
+                                 'vocabularies. ')
 
         # Load vocabularies.
         source_vocabs = [vocab.vocab_from_json(vocab_path) for vocab_path in source_vocab_paths]
         target_vocabs = [vocab.vocab_from_json(vocab_path) for vocab_path in target_vocab_paths]
 
-        #Oughta add like shared vocab shit.
-        pass
         #Oughta add like vocab loading if resuming training.
         pass
 

@@ -270,6 +270,40 @@ def load_or_create_vocab(data: Iterable[str], vocab_path: Optional[str], num_wor
     else:
         return vocab_from_json(vocab_path)
 
+def load_vocabs(source_vocab_paths: List[str],
+                target_vocab_paths: List[str],
+                source_factor_vocab_same_as_source: Optional[List[bool] or bool],
+                target_factor_vocab_same_as_target: Optional[List[bool] or bool],
+                source_factor_count: int,
+                target_factor_count: int,
+                shared_vocab: bool):
+    """
+    Loads vocabularies for source/target and their factors.
+
+    :param source_vocab_paths: List containing [path to source vocab, path to 1st source factor, path to 2nd...].
+    :param target_vocab_paths: List containing [path to target vocab, path to 1st target factor, path to 2nd...].
+    :param source_factor_vocab_same_as_source: Flags for whether a source factor uses the same vocabulary as source.
+                                               Accepts list of bools of equal length to source factor count,
+                                               a single bool, an empty list, or None.
+                                               If it's a single bool, it's broadcast to the amount of factors.
+                                               If it's an empty list, defaults to False for all factors.
+                                               If it's None, defaults to False for all factors.
+    :param target_factor_vocab_same_as_target: Works analogously as source_factor_vocab_same_as_source, but
+                                               for target and target factors.
+    :param source_factor_count: Amount of source factors (excluding source itself).
+    :param target_factor_count: Amount of target factors (excluding target itself).
+    :param shared_vocab: Bool flag for whether the source and the target use the same vocabulary.
+                         (Note that this doesn't affect source factor and target factor vocabularies).
+    :return: Tuple with two elements - list of source (and source factor) vocabularies and list of target (and target
+             factor vocabularies).
+    :note: Unlike load_or_create_vocabs, this function doesn't create vocabularies.
+    :note: source_vocab_paths are aligned with positions where source_factor_vocab_same_as_source is False.
+           And if
+           len(source_vocab_paths) + number of False values in source_factor_vocab_same_as_source (after broadcasting)
+           does not equal source_factor_count, function will throw an error.
+    """
+    pass
+
 def load_or_create_vocabs(shard_source_paths: Iterable[Iterable[str]],
                           shard_target_paths: Iterable[Iterable[str]],
                           source_vocab_paths: List[Optional[str]],
@@ -280,7 +314,8 @@ def load_or_create_vocabs(shard_source_paths: Iterable[Iterable[str]],
                           num_words_source: Optional[int], word_min_count_source: int,
                           num_words_target: Optional[int], word_min_count_target: int,
                           pad_to_multiple_of: Optional[int] = None,
-                          mapper: Callable = map) -> Tuple[List[Vocab], List[Vocab]]:
+                          mapper: Callable = map,
+                          load_only: bool) -> Tuple[List[Vocab], List[Vocab]]:
     """
     Returns vocabularies for source files (including factors) and target files (including factors.
     If the respective vocabulary paths are not None, the vocabulary is read from the path and returned.
@@ -299,6 +334,7 @@ def load_or_create_vocabs(shard_source_paths: Iterable[Iterable[str]],
     :param word_min_count_target: Minimum frequency of words in the target vocabulary.
     :param pad_to_multiple_of: If not None, pads the vocabularies to a size that is the next multiple of this int.
     :param mapper: Built-in map function or multiprocessing.pool.map with max_processes processes.
+
     :return: List of source vocabularies (for source and factors), and target vocabulary.
     """
     shard_source_sentence_paths: Tuple[str, ...]

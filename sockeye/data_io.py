@@ -2226,7 +2226,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
 
         #Give out a batch to the worker already, so hopefully it's done by the time we actually need a batch.
         json_batch = self.get_json_batch()
-        self.put_worker_batch(json_batch)
+        self.send_worker_data(json_batch)
 
     def __iter__(self):
         return self
@@ -2237,7 +2237,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
 
     def get_json_batch(self):
         """
-        Gets a json batch for all the torch.distributed processes (if in distributed mode at all).
+        Gets a json batch from stdin for all the torch.distributed processes (if in distributed mode at all).
         """
         if utils.is_distributed():
             batch_count = torch.distributed.get_world_size()
@@ -2256,15 +2256,15 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
 
         return json_batches[torch.distributed.get_rank()]
 
-    def put_worker_batch(self, batch):
+    def send_worker_data(self, batch):
         """
         Sends batch to object's worker process.
         """
         self.pipe_manager.send(batch)
 
-    def get_worker_batch(self):
+    def get_worker_result(self):
         """
-        Gets processed batch from object's worker process.
+        Gets processed data from object's worker process.
         """
         return self.pipe_manager.recv()
 
@@ -2274,15 +2274,15 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
     def next(self) -> 'Batch':
         # Give out a batch
         json_batch = self.get_json_batch()
-        self.put_worker_batch(json_batch)
+        self.send_worker_data(json_batch)
 
         # Take the results.
-        batch = self.get_worker_batch()
-        batch = create_batch_from_parallel_sample(batch[C.JSON_SOURCES],
-                                                  batch[C.JSON_TARGETS],
-                                                  label=batch[C.TARGETS_LABEL_NAME],
+        result = self.get_worker_result()
+        batch = create_batch_from_parallel_sample(result[C.JSON_SOURCES],
+                                                  result[C.JSON_TARGETS],
+                                                  label=result[C.TARGETS_LABEL_NAME],
                                                   prepended_source_length=None,
-                                                  alignment_matrix=batch[C.JSON_ALIGNMENT_MATRIX])
+                                                  alignment_matrix=result[C.JSON_ALIGNMENT_MATRIX])
         return batch
 
 
