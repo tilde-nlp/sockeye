@@ -460,7 +460,15 @@ def add_training_data_args(params, required=False):
                              'not the current one. Defaults to no shift.')
     params.add_argument('--stdin-input',
                         action='store_true',
-                        help='Whether to read input from stdin rather than files or prepared data files.')
+                        help=f'Whether to read input from stdin rather than files or prepared data files.'
+                             f'Input is expected to have one one json dict per line. (a very long line)'
+                             f'The json dict represents a whole batch of data.'
+                             f'The keys should be {C.JSON_TEXT_KEY} - for sources (List[str]);'
+                             f'{C.JSON_FACTORS_KEY} - for source factors (List[List[str]]);'
+                             f'{C.JSON_TARGET_KEY} - for targets List[str];'
+                             f'{C.JSON_TARGET_FACTORS_KEY} - for target factors (List[List[str]]);'
+                             f'{C.JSON_ALIGNMENT_MATRIX_KEY} - for alignment matrices (List[str]).'
+                             f'The alignment matrix strings should be in this format "1-3 3-7 6-9 4-2 0-0...".')
 
 
 def add_validation_data_params(params):
