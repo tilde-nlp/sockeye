@@ -281,8 +281,7 @@ def load_or_create_vocabs(shard_source_paths: Iterable[Iterable[str]],
                           num_words_source: Optional[int], word_min_count_source: int,
                           num_words_target: Optional[int], word_min_count_target: int,
                           pad_to_multiple_of: Optional[int] = None,
-                          mapper: Callable = map,
-                          load_only: bool) -> Tuple[List[Vocab], List[Vocab]]:
+                          mapper: Callable = map) -> Tuple[List[Vocab], List[Vocab]]:
     """
     Returns vocabularies for source files (including factors) and target files (including factors.
     If the respective vocabulary paths are not None, the vocabulary is read from the path and returned.

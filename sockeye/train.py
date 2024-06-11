@@ -372,7 +372,6 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
             if vocab_path is None:
                 raise ValueError('If training from stdin, source and all source factors require specifying '
                                  'vocabularies. ')
-                #Oughta add instruction to define vocabularies.
         for vocab_path in target_vocab_paths:
             if vocab_path is None:
                 raise ValueError('If training from stdin, target and all target factors require specifying '
@@ -381,9 +380,6 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
         # Load vocabularies.
         source_vocabs = [vocab.vocab_from_json(vocab_path) for vocab_path in source_vocab_paths]
         target_vocabs = [vocab.vocab_from_json(vocab_path) for vocab_path in target_vocab_paths]
-
-        #Oughta add like vocab loading if resuming training.
-        pass
 
         train_iter, validation_iter, config_data, data_info = data_io.get_stdin_training_data_iters(source_vocabs,
                                                                                                     target_vocabs,
@@ -394,7 +390,8 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
                                                                                                     target_vocab_paths=target_factor_vocab_paths,
                                                                                                     shift_alignments=args.shift_alignments,
                                                                                                     max_source_len=max_seq_len_source,
-                                                                                                    max_target_len=max_seq_len_target)
+                                                                                                    max_target_len=max_seq_len_target,
+                                                                                                    bucket_width=args.bucket_width)
 
 
 

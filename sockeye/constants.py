@@ -148,10 +148,14 @@ JSON_RESTRICT_LEXICON_KEY = "restrict_lexicon"
 JSON_CONSTRAINTS_KEY = "constraints"
 JSON_AVOID_KEY = "avoid"
 
-#data_io used for the json input of the stdin training data iterator
-JSON_SOURCES = "sources"
-JSON_TARGETS = "targets"
-JSON_ALIGNMENT_MATRIX = "alignment_matrix"
+# Used for the json input of the stdin training data iterator in data_io
+# These are exposed to the user:
+JSON_TARGET_KEY = "target"
+JSON_TARGET_FACTORS_KEY = "target_factors"
+JSON_ALIGNMENT_MATRIX_KEY = "alignment_matrix"
+# These are internal:
+JSON_SOURCES_KEY = "sources"
+JSON_TARGETS_KEY = "targets"
 
 VERSION_NAME = "version"
 CONFIG_NAME = "config"
