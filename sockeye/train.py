@@ -360,27 +360,39 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
         return train_iter, validation_iter, data_config, data_info, source_vocabs, target_vocabs
 
     elif args.stdin_input:
-        # Get vocabulary paths.
-        source_factor_vocab_paths = [args.source_factor_vocabs[i] if i < len(args.source_factor_vocabs)
-                                     else None for i in range(len(args.source_factors))]
-        source_vocab_paths = [args.source_vocab] + source_factor_vocab_paths
-        target_factor_vocab_paths = [args.target_factor_vocabs[i] if i < len(args.target_factor_vocabs)
-                                     else None for i in range(len(args.target_factors))]
-        target_vocab_paths = [args.target_vocab] + target_factor_vocab_paths
-        # Verify we have all the vocabularies we need.
-        for vocab_path in source_vocab_paths:
-            if vocab_path is None:
-                raise ValueError('If training from stdin, source and all source factors require specifying '
-                                 'vocabularies. ')
-        for vocab_path in target_vocab_paths:
-            if vocab_path is None:
-                raise ValueError('If training from stdin, target and all target factors require specifying '
-                                 'vocabularies. ')
+        # First let's get the vocabularies.
+        if resume_training:
+            # Load the existing vocabs created when starting the training run.
+            source_vocabs = vocab.load_source_vocabs(output_folder)
+            target_vocabs = vocab.load_target_vocabs(output_folder)
 
-        # Load vocabularies.
-        source_vocabs = [vocab.vocab_from_json(vocab_path) for vocab_path in source_vocab_paths]
-        target_vocabs = [vocab.vocab_from_json(vocab_path) for vocab_path in target_vocab_paths]
+            data_info = cast(data_io.DataInfo, Config.load(os.path.join(output_folder, C.DATA_INFO)))
+            source_vocab_paths = data_info.source_vocabs
+            target_vocab_paths = data_info.target_vocabs
 
+        else:
+            # Get vocabulary paths.
+            source_factor_vocab_paths = [args.source_factor_vocabs[i] if i < len(args.source_factor_vocabs)
+                                         else None for i in range(len(args.source_factors))]
+            source_vocab_paths = [args.source_vocab] + source_factor_vocab_paths
+            target_factor_vocab_paths = [args.target_factor_vocabs[i] if i < len(args.target_factor_vocabs)
+                                         else None for i in range(len(args.target_factors))]
+            target_vocab_paths = [args.target_vocab] + target_factor_vocab_paths
+            # Verify we have all the vocabularies we need.
+            for vocab_path in source_vocab_paths:
+                if vocab_path is None:
+                    raise ValueError('If training from stdin, source and all source factors require specifying '
+                                     'vocabularies. ')
+            for vocab_path in target_vocab_paths:
+                if vocab_path is None:
+                    raise ValueError('If training from stdin, target and all target factors require specifying '
+                                     'vocabularies. ')
+
+            # Load vocabularies.
+            source_vocabs = [vocab.vocab_from_json(vocab_path) for vocab_path in source_vocab_paths]
+            target_vocabs = [vocab.vocab_from_json(vocab_path) for vocab_path in target_vocab_paths]
+
+        # Next let's get the data iterator
         train_iter, validation_iter, config_data, data_info = data_io.get_stdin_training_data_iters(
             source_vocabs,
             target_vocabs,
@@ -388,15 +400,14 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
             validation_sources,
             validation_targets,
             source_vocab_paths=source_vocab_paths,
-            target_vocab_paths=target_factor_vocab_paths,
+            target_vocab_paths=target_vocab_paths,
             shift_alignments=args.shift_alignments,
             max_source_len=max_seq_len_source,
             max_target_len=max_seq_len_target,
             bucket_width=args.bucket_width,
             align_attention=args.align_attention or args.alignment_matrix_weight or args.attention_alignment_layer)
 
-
-
+        # Save data info, whatever it does.
         data_info_fname = os.path.join(output_folder, C.DATA_INFO)
         logger.info("Writing data config to '%s'", data_info_fname)
         data_info.save(data_info_fname)

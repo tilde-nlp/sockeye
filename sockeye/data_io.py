@@ -2257,7 +2257,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                                               max_source_len,
                                               max_target_len,
                                               shift_alignments,
-                                              dtype))
+                                              dtype),
+                                              daemon=True)
         self.worker.start()
 
         #Give out a batch to the worker already, so hopefully it's done by the time we actually need a batch.
