@@ -1030,8 +1030,9 @@ def get_stdin_training_data_iters(source_vocabs: List[vocab.Vocab],
                                   source_vocab_paths: List[str],
                                   target_vocab_paths: List[str],
                                   bucket_width: int,
-                                  max_source_len: int = 128,
-                                  max_target_len: int = 128,
+                                  max_source_len: int = 95,
+                                  max_target_len: int = 95,
+                                  align_attention: bool = False,
                                   shift_alignments: bool = False,
                                   dtype='int32') -> Tuple['BaseParallelSampleIter',
                                                           'BaseParallelSampleIter',
@@ -1074,21 +1075,28 @@ def get_stdin_training_data_iters(source_vocabs: List[vocab.Vocab],
                          target_vocabs=target_vocab_paths,
                          shared_vocab=False,
                          num_shards=1,
-                         contains_alignment_matrix=True)
+                         contains_alignment_matrix=align_attention)
 
     # Buckets are kinda irrelevant since we just run the batches we get from stdin.
     # We expect the input to already be bucketed if the user cares about that.
     # Well ok I guess buckets ~slightly matter, because for some reason I don't understand torch.trace works
     # really slow every time you change the bucket size.
-    buckets = [(100, 100)]
-    #Prolly oughta make this bucketting algo smarter.
-    pass
+    max_length = max(max_source_len, max_target_len)
+    buckets = [(size, size) for size in range(bucket_width, max_length + 1, bucket_width)]
+    buckets.append((max_length + 1, max_length + 1))
+
     bucket_batch_sizes = define_bucket_batch_sizes(buckets,
                                                    batch_size,
                                                    C.BATCH_TYPE_MAX_WORD,
-                                                   [69],
+                                                   [100] * len(buckets),
                                                    1)
 
+    # We don't have data to get the statistics from.
+    # I think the bit that matters the most in the sockeye code is length_ratio_std and length_ratio_mean.
+    # I put it to 0.5. This means that using the defaults (2 standard deviations for --max-output-length-num-stds) I
+    # think it should translate to a maximum of source_length*2.
+    # That should be plenty for practical purposes.
+    # Override it when translating if this is a problem.
     data_statistics = DataStatistics(num_sents=-1,
     num_discarded=-1,
     num_tokens_source=-1,
@@ -1100,10 +1108,10 @@ def get_stdin_training_data_iters(source_vocabs: List[vocab.Vocab],
     size_vocab_source=len(source_vocabs[0]),
     size_vocab_target=len(target_vocabs[0]),
     length_ratio_mean=1,
-    length_ratio_std=0.2,
+    length_ratio_std=0.5,
     buckets=buckets,
-    num_sents_per_bucket=[1337],
-    average_len_target_per_bucket=[69],
+    num_sents_per_bucket=[-1],
+    average_len_target_per_bucket=[-1],
     length_ratio_stats_per_bucket=None)
 
     config_data = DataConfig(data_statistics=data_statistics,
@@ -1112,7 +1120,6 @@ def get_stdin_training_data_iters(source_vocabs: List[vocab.Vocab],
                              num_source_factors=len(source_vocabs),
                              num_target_factors=len(target_vocabs),
                              eop_id=-1)
-
 
     data_loader = RawParallelDatasetLoader(buckets=buckets,
                                            eos_id=C.EOS_ID,
@@ -1125,8 +1132,8 @@ def get_stdin_training_data_iters(source_vocabs: List[vocab.Vocab],
                                                bucket_batch_sizes=bucket_batch_sizes,
                                                source_vocabs=source_vocabs,
                                                target_vocabs=target_vocabs,
-                                               max_seq_len_source=buckets[0][1] + 1,
-                                               max_seq_len_target=buckets[0][0] + 1,
+                                               max_seq_len_source=max_source_len + 1,
+                                               max_seq_len_target=max_target_len + 1,
                                                batch_size=batch_size,
                                                permute=False)
 

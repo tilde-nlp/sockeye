@@ -381,17 +381,19 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
         source_vocabs = [vocab.vocab_from_json(vocab_path) for vocab_path in source_vocab_paths]
         target_vocabs = [vocab.vocab_from_json(vocab_path) for vocab_path in target_vocab_paths]
 
-        train_iter, validation_iter, config_data, data_info = data_io.get_stdin_training_data_iters(source_vocabs,
-                                                                                                    target_vocabs,
-                                                                                                    args.batch_size,
-                                                                                                    validation_sources,
-                                                                                                    validation_targets,
-                                                                                                    source_vocab_paths=source_vocab_paths,
-                                                                                                    target_vocab_paths=target_factor_vocab_paths,
-                                                                                                    shift_alignments=args.shift_alignments,
-                                                                                                    max_source_len=max_seq_len_source,
-                                                                                                    max_target_len=max_seq_len_target,
-                                                                                                    bucket_width=args.bucket_width)
+        train_iter, validation_iter, config_data, data_info = data_io.get_stdin_training_data_iters(
+            source_vocabs,
+            target_vocabs,
+            args.batch_size,
+            validation_sources,
+            validation_targets,
+            source_vocab_paths=source_vocab_paths,
+            target_vocab_paths=target_factor_vocab_paths,
+            shift_alignments=args.shift_alignments,
+            max_source_len=max_seq_len_source,
+            max_target_len=max_seq_len_target,
+            bucket_width=args.bucket_width,
+            align_attention=args.align_attention or args.alignment_matrix_weight or args.attention_alignment_layer)
 
 
 
