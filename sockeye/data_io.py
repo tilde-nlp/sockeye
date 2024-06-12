@@ -457,7 +457,6 @@ def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int
     # The result here is a tensor of shape [2, alignment count in sentence].
     # [0, :] are source coordinates of alignments.
     # [1, :] are target coordinates of alignments.
-    indexes_tens = torch.flip(indexes_tens, [0])
 
     # Count up alignment for each target token.
     amounts = torch.bincount(indexes_tens[1], minlength=size[1])
@@ -472,7 +471,7 @@ def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int
     values = normalized_values[indexes_tens[1]]
 
     # Finally actually create the tensor.
-    tensor = torch.zeros(size, dtype=torch.float32)
+    tensor = torch.zeros([size[1], size[0]], dtype=torch.float32)
     tensor[indexes_tens[1], indexes_tens[0]] = values
     tensor = tensor.reshape([1, -1])
     tensor = tensor.to_sparse_coo()
