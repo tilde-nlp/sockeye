@@ -112,7 +112,6 @@ LENRATIO_LABEL_NAME = "length_ratio_label"
 LENRATIO_NAME = "length_ratio"
 ALIGNMENT_MATRIX_LABEL = 'alignment_matrix_label'
 ATTENTION_NAME = "attention"
-TARGETS_LABEL_NAME = 'targets_label'
 
 LOGITS_NAME = "logits"
 FACTOR_LOGITS_NAME = "factor%d_logits"

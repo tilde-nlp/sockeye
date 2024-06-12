@@ -449,8 +449,6 @@ def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int
     :return: Sparse COO tensor of shape [1, target length * source length] reshaped from [target length, source length].
     :note: If a target token has no source token alignments, the row (pre-reshaping) of this target token will be filled
            with 0s.
-    :note: The dense parameter was added because when training from stdin we can skip the compression to COO,
-           because we'll only have a few batches in memory at any point in time anyway.
     """
     indexes_tens = torch.tensor(indexes).t().long()
     if indexes_tens.numel() == 0:
@@ -1594,7 +1592,7 @@ def parallel_iterate(source_iterators: Sequence[Iterator[Optional[Any]]],
                      target_iterators: Sequence[Iterator[Optional[Any]]],
                      alignment_matrix_iterator: Optional[Iterator[Any]] = None,
                      skip_blanks: bool = True,
-                     check_token_parallel: bool = True) -> object:
+                     check_token_parallel: bool = True):
     """
     Yields parallel source(s), target sequences, and optionally alignment matrix indices from iterables.
     Checks for token parallelism in source sequences.
@@ -2205,7 +2203,7 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
             data = {C.JSON_SOURCES_KEY: sources_tens,
                     C.JSON_TARGETS_KEY: targets_tens,
                     C.JSON_ALIGNMENT_MATRIX_KEY: alignment_matrices,
-                    C.TARGETS_LABEL_NAME: labels}
+                    C.TARGET_LABEL_NAME: labels}
 
             pipe.send(data)
 
@@ -2317,7 +2315,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         result = self.get_worker_result()
         batch = create_batch_from_parallel_sample(result[C.JSON_SOURCES_KEY],
                                                   result[C.JSON_TARGETS_KEY],
-                                                  label=result[C.TARGETS_LABEL_NAME],
+                                                  label=result[C.TARGET_LABEL_NAME],
                                                   prepended_source_length=None,
                                                   alignment_matrix=result[C.JSON_ALIGNMENT_MATRIX_KEY])
         return batch

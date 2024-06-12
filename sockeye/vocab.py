@@ -300,7 +300,6 @@ def load_or_create_vocabs(shard_source_paths: Iterable[Iterable[str]],
     :param word_min_count_target: Minimum frequency of words in the target vocabulary.
     :param pad_to_multiple_of: If not None, pads the vocabularies to a size that is the next multiple of this int.
     :param mapper: Built-in map function or multiprocessing.pool.map with max_processes processes.
-
     :return: List of source vocabularies (for source and factors), and target vocabulary.
     """
     shard_source_sentence_paths: Tuple[str, ...]
