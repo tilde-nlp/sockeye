@@ -2172,8 +2172,7 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
             if alignment_batch is not None:
                 alignment_matrices = [create_alignment_matrix(alignments, bucket_size, dense=True)
                                       for alignments in alignment_batch]
-                alignment_matrices = torch.cat(alignment_matrices, dim=0)
-                print(alignment_matrices.shape)
+                alignment_matrices = torch.stack(alignment_matrices, dim=0)
             else:
                 alignment_matrices = None
 
