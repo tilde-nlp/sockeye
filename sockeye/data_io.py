@@ -2211,7 +2211,7 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
     except Exception as e:
         tb = traceback.format_exc()
         import random
-        with open('batch_processor_error_log_' + str(random.randint(0, 1000) + '.txt'), 'w') as f:
+        with open('batch_processor_error_log_' + str(random.randint(0, 1000)) + '.txt', 'w') as f:
             f.write(tb)
         sys.exit()
 
