@@ -2102,6 +2102,7 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
                 # Make a dummy list if we don't have factors.
                 batch[C.JSON_FACTORS_KEY] = [[]] * len(batch[C.JSON_TEXT_KEY])
             for idx, (source, source_factors) in enumerate(zip(batch[C.JSON_TEXT_KEY], batch[C.JSON_FACTORS_KEY])):
+                print(source, source_factors)
                 sources_ = [source] + source_factors
                 sources_ = [tokens2ids(s.split(' '), source_vocabs[factor_idx]) for factor_idx, s in enumerate(sources_)]
                 sources.append(sources_)
