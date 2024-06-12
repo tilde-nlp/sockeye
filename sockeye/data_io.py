@@ -438,7 +438,7 @@ def get_prepended_token_length(ids: List[int], eop_id: int) -> int:
         return 0
 
 
-def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int]) -> torch.Tensor:
+def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int], dense: bool = False) -> torch.Tensor:
     """
     Creates a sparse alignment matrix tensor from a list of indexes.
     The matrix is normalized along source dimension to sum up to 1.
@@ -473,8 +473,9 @@ def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int
     # Finally actually create the tensor.
     tensor = torch.zeros([size[1], size[0]], dtype=torch.float32)
     tensor[indexes_tens[1], indexes_tens[0]] = values
-    tensor = tensor.reshape([1, -1])
-    tensor = tensor.to_sparse_coo()
+    if dense:
+        tensor = tensor.reshape([1, -1])
+        tensor = tensor.to_sparse_coo()
 
     return tensor
 
