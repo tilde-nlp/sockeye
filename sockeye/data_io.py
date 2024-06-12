@@ -473,7 +473,7 @@ def create_alignment_matrix(indexes: List[Tuple[int, int]], size: Tuple[int, int
     # Finally actually create the tensor.
     tensor = torch.zeros([size[1], size[0]], dtype=torch.float32)
     tensor[indexes_tens[1], indexes_tens[0]] = values
-    if dense:
+    if not dense:
         tensor = tensor.reshape([1, -1])
         tensor = tensor.to_sparse_coo()
 
