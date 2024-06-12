@@ -2166,7 +2166,7 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
             max_length = min(max(max_source_length, max_target_length), max(max_target_len, max_source_len))
             # This doesn't take into account possible differences in length between source and target.
             # That is just currently unsupported.
-            bucket_size = (max_length, max_length + 1)
+            bucket_size = (max_length, max_length)
 
             # Turn alignment indexes into proper alignment matrix tensors.
             if alignment_batch is not None:
