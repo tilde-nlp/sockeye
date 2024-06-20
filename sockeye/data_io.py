@@ -2246,7 +2246,6 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                  shift_alignments: bool = False,
                  dtype='int32') -> None:
         # Create a worker process who will do the dirty work of turing strings into usable batches.
-        print(len(source_vocabs))
         self.pipe_manager, self.pipe_worker = multiprocessing.Pipe() # For communication.
         self.worker = multiprocessing.Process(target=batch_processing_worker, args=(self.pipe_worker,
                                               source_vocabs,

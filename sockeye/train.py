@@ -372,21 +372,8 @@ def create_data_iters_and_vocabs(args: argparse.Namespace,
 
         else:
             # Get vocabulary paths.
-            source_factor_vocab_paths = [args.source_factor_vocabs[i] if i < len(args.source_factor_vocabs)
-                                         else None for i in range(len(args.source_factors))]
-            source_vocab_paths = [args.source_vocab] + source_factor_vocab_paths
-            target_factor_vocab_paths = [args.target_factor_vocabs[i] if i < len(args.target_factor_vocabs)
-                                         else None for i in range(len(args.target_factors))]
-            target_vocab_paths = [args.target_vocab] + target_factor_vocab_paths
-            # Verify we have all the vocabularies we need.
-            for vocab_path in source_vocab_paths:
-                if vocab_path is None:
-                    raise ValueError('If training from stdin, source and all source factors require specifying '
-                                     'vocabularies. ')
-            for vocab_path in target_vocab_paths:
-                if vocab_path is None:
-                    raise ValueError('If training from stdin, target and all target factors require specifying '
-                                     'vocabularies. ')
+            source_vocab_paths = [args.source_vocab] + args.source_factor_vocabs
+            target_vocab_paths = [args.target_vocab] + args.target_factor_vocabs
 
             # Load vocabularies.
             source_vocabs = [vocab.vocab_from_json(vocab_path) for vocab_path in source_vocab_paths]
