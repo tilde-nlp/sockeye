@@ -2290,7 +2290,10 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         if utils.is_distributed():
             torch.distributed.broadcast_object_list(json_batches, src=0)
 
-        return json_batches[torch.distributed.get_rank()]
+        if utils.is_distributed():
+            return json_batches[torch.distributed.get_rank()]
+        else:
+            return json_batches[0]
 
     def send_worker_data(self, batch):
         """
