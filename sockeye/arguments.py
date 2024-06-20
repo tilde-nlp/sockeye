@@ -461,7 +461,7 @@ def add_training_data_args(params, required=False):
     params.add_argument('--stdin-input',
                         action='store_true',
                         help=f'Whether to read input from stdin rather than files or prepared data files.'
-                             f'Input is expected to have one one json dict per line. (a very long line)'
+                             f'Input is expected to have one json dict per line. (a very long line)'
                              f'The json dict represents a whole batch of data.'
                              f'The keys should be {C.JSON_TEXT_KEY} - for sources (List[str]);'
                              f'{C.JSON_FACTORS_KEY} - for source factors (List[List[str]]);'
