@@ -2287,7 +2287,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         else:
             json_batches = [None for _ in range(torch.distributed.get_world_size())]
 
-        torch.distributed.broadcast_object_list(json_batches, src=0)
+        if utils.is_distributed():
+            torch.distributed.broadcast_object_list(json_batches, src=0)
 
         return json_batches[torch.distributed.get_rank()]
 
