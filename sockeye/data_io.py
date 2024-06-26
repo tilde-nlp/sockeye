@@ -2311,11 +2311,11 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
 
     def next(self) -> 'Batch':
         # Give out a batch
+        result = self.get_worker_result()
         json_batch = self.get_json_batch()
         self.send_worker_data(json_batch)
 
         # Take previous result.
-        result = self.get_worker_result()
         batch = create_batch_from_parallel_sample(result[C.JSON_SOURCES_KEY],
                                                   result[C.JSON_TARGETS_KEY],
                                                   label=result[C.TARGET_LABEL_NAME],
