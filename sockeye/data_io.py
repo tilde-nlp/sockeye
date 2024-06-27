@@ -2291,11 +2291,11 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
                                               daemon=True)
         self.worker.start()
 
+        self.names = []
+        self.times = []
         #Give out a batch to the worker already, so hopefully it's done by the time we actually need a batch.
         json_batch = self.get_json_batch()
         self.send_worker_data(json_batch)
-        self.names = []
-        self.times = []
 
     def __iter__(self):
         return self
@@ -2351,7 +2351,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         return True
 
     def next(self) -> 'Batch':
-        for idx in range(len(s.times) - 1):
+        for idx in range(len(self.times) - 1):
             print(self.names[idx], '-', self.names[idx + 1], ': ', (self.times[idx + 1] - self.times[idx]) * 1000)
         print()
         self.times = []
