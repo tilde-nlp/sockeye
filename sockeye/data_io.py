@@ -2379,20 +2379,16 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         self.times.append(time.time())
         # Take previous result.
         result = self.result
-        print(result[C.JSON_SOURCES_KEY].shape)
-        print(result[C.JSON_TARGETS_KEY].shape)
-        print(result[C.TARGET_LABEL_NAME].shape)
-        print(result[C.JSON_ALIGNMENT_MATRIX_KEY].shape)
         batch = create_batch_from_parallel_sample(result[C.JSON_SOURCES_KEY],
                                                   result[C.JSON_TARGETS_KEY],
                                                   label=result[C.TARGET_LABEL_NAME],
                                                   prepended_source_length=None,
                                                   alignment_matrix=result[C.JSON_ALIGNMENT_MATRIX_KEY])
-        self.names.append('after create batch')
-        self.times.append(time.time())
         self.names.append('b4 get worker result')
         self.times.append(time.time())
         self.result = self.get_worker_result()
+        self.names.append('after create batch')
+        self.times.append(time.time())
         return batch
 
 
