@@ -2372,6 +2372,10 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         self.names.append('b4 create batch')
         self.times.append(time.time())
         # Take previous result.
+        print(result[C.JSON_SOURCES_KEY].shape)
+        print(result[C.JSON_TARGETS_KEY].shape)
+        print(result[C.TARGET_LABEL_NAME].shape)
+        print(result[C.JSON_ALIGNMENT_MATRIX_KEY].shape)
         batch = create_batch_from_parallel_sample(result[C.JSON_SOURCES_KEY],
                                                   result[C.JSON_TARGETS_KEY],
                                                   label=result[C.TARGET_LABEL_NAME],
