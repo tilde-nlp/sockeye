@@ -2304,7 +2304,6 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         self.send_worker_data(json_batch)
         json_batch = self.get_json_batch()
         self.send_worker_data(json_batch)
-        self.result = self.get_worker_result()
 
     def __iter__(self):
         return self
@@ -2373,7 +2372,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         json_batch = self.get_json_batch()
         self.names.append('b4 get worker result')
         self.times.append(time.time())
-        self.result = self.get_worker_result()
+        result = self.get_worker_result()
         self.names.append('b4 send worker data')
         self.times.append(time.time())
         self.send_worker_data(json_batch)
@@ -2381,7 +2380,6 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         self.names.append('b4 create batch')
         self.times.append(time.time())
         # Take previous result.
-        result = self.result
         batch = create_batch_from_parallel_sample(result[C.JSON_SOURCES_KEY],
                                                   result[C.JSON_TARGETS_KEY],
                                                   label=result[C.TARGET_LABEL_NAME],
