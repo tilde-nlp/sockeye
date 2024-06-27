@@ -2060,6 +2060,7 @@ class BaseParallelSampleIter:
 
 import traceback
 import sys
+import time
 def batch_processing_worker(pipe: multiprocessing.Pipe,
                     source_vocabs: List[Dict[str, int]],
                     target_vocabs: List[Dict[str, int]],
@@ -2083,8 +2084,16 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
     try:
         while True:
             # Get the raw json string for the batch.
+            times = []
+            names = []
+            times.append(time.time())
+            names.append('b4 receiving')
             json_batch = pipe.recv()
+            names.append('b4 json loads')
+            times.append(time.time())
             batch = json.loads(json_batch)
+            names.append('before source processing')
+            times.append(time.time())
 
             sources = []
             targets = []
@@ -2107,6 +2116,8 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
                 source_lengths.append(len(sources_[0]))
                 if source_lengths[-1] > max_source_len:
                     bad_indexes.add(idx)
+            names.append('b4 target processing')
+            times.append(time.time())
 
             # Tokenize targets.
             if not C.JSON_TARGET_FACTORS_KEY in batch:
@@ -2119,6 +2130,8 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
                 if target_lengths[-1] > max_target_len:
                     bad_indexes.add(idx)
 
+            names.append('b4 alignment matrix parsing')
+            times.append(time.time())
             # Parse alignments.
             if C.JSON_ALIGNMENT_MATRIX_KEY in batch:
                 for idx, alignments in enumerate(batch[C.JSON_ALIGNMENT_MATRIX_KEY]):
@@ -2127,6 +2140,8 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
             else:
                 alignment_batch = None
 
+            names.append('b4 bad index removal')
+            times.append(time.time())
             if len(bad_indexes) > 0:
                 # Throw out the bad data.
                 sources_good = []
@@ -2149,6 +2164,8 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
                 if alignment_batch is not None:
                     alignment_batch = alignment_batch_good
 
+            names.append('b4 data validation and buckets calc')
+            times.append(time.time())
             # Some computationally cheap data validation.
             assert len(targets) == len(sources)
             if alignment_batch is not None:
@@ -2167,6 +2184,8 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
             # That is just currently unsupported.
             bucket_size = (max_length, max_length)
 
+            names.append('b4 alignment matrix creation')
+            times.append(time.time())
             # Turn alignment indexes into proper alignment matrix tensors.
             if alignment_batch is not None:
                 alignment_matrices = [create_alignment_matrix(alignments, bucket_size, dense=True)
@@ -2175,6 +2194,8 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
             else:
                 alignment_matrices = None
 
+            names.append('b4 src and trg numpy conversion')
+            times.append(time.time())
             # Write source, target and factor tokens to numpy arrays.
             source_factor_count = len(sources[0])
             target_factor_count = len(targets[0])
@@ -2192,6 +2213,8 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
                         t.append(C.EOS_ID)
                     targets_np[sample_idx, 0:len(t), target_factor_idx] = t
 
+            names.append('b4 src/trg tensor conversion')
+            times.append(time.time())
             sources_tens = torch.tensor(sources_np)
             targets_tens = torch.tensor(targets_np)
             targets_tens, labels = create_target_and_shifted_label_sequences(targets_tens)
@@ -2199,12 +2222,22 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
             # Gotta figure out prep_len.
             pass  # Eh fuck this for now
 
+            names.append('b4 res dict creation')
+            times.append(time.time())
             data = {C.JSON_SOURCES_KEY: sources_tens,
                     C.JSON_TARGETS_KEY: targets_tens,
                     C.JSON_ALIGNMENT_MATRIX_KEY: alignment_matrices,
                     C.TARGET_LABEL_NAME: labels}
 
+            names.append('b4 data send')
+            times.append(time.time())
             pipe.send(data)
+            names.append('after data send')
+            times.append(time.time())
+
+            for idx in range(len(times) - 1):
+                print(names[idx], '-', names[idx + 1], ': ', (times[idx + 1] - times[idx]) * 1000)
+            print()
 
     # Log errors if any arise.
     except Exception as e:
@@ -2273,11 +2306,15 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         """
         Gets a json batch from stdin for all the torch.distributed processes (if in distributed mode at all).
         """
+        self.names.append('b4 distributed check')
+        self.times.append(time.time())
         if utils.is_distributed():
             batch_count = torch.distributed.get_world_size()
         else:
             batch_count = 1
 
+        self.names.append('b4 json input')
+        self.times.append(time.time())
         if utils.is_primary_worker():
             json_batches = []
             for batch_idx in range(batch_count):
@@ -2286,6 +2323,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         else:
             json_batches = [None for _ in range(torch.distributed.get_world_size())]
 
+        self.names.append('b4 broadcast')
+        self.times.append(time.time())
         if utils.is_distributed():
             torch.distributed.broadcast_object_list(json_batches, src=0)
 
@@ -2310,17 +2349,32 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         return True
 
     def next(self) -> 'Batch':
+        for idx in range(len(s.times) - 1):
+            print(self.names[idx], '-', self.names[idx + 1], ': ', (self.times[idx + 1] - self.times[idx]) * 1000)
+        print()
+        self.times = []
+        self.names = []
+        self.names.append('b4 get json batch')
+        self.times.append(time.time())
         # Give out a batch
         json_batch = self.get_json_batch()
+        self.names.append('b4 send worker data')
+        self.times.append(time.time())
         self.send_worker_data(json_batch)
+        self.names.append('b4 get worker result')
+        self.times.append(time.time())
         result = self.get_worker_result()
 
+        self.names.append('b4 create batch')
+        self.times.append(time.time())
         # Take previous result.
         batch = create_batch_from_parallel_sample(result[C.JSON_SOURCES_KEY],
                                                   result[C.JSON_TARGETS_KEY],
                                                   label=result[C.TARGET_LABEL_NAME],
                                                   prepended_source_length=None,
                                                   alignment_matrix=result[C.JSON_ALIGNMENT_MATRIX_KEY])
+        self.names.append('after create batch')
+        self.times.append(time.time())
         return batch
 
 
