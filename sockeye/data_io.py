@@ -2351,6 +2351,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         return True
 
     def next(self) -> 'Batch':
+        self.names.append('b4 get json batch')
+        self.times.append(time.time())
         for idx in range(len(self.times) - 1):
             print(self.names[idx], '-', self.names[idx + 1], ': ', (self.times[idx + 1] - self.times[idx]) * 1000)
         print()
