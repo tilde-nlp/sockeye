@@ -2082,6 +2082,7 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
     :param dtype: ???
     """
     try:
+        time.sleep(0.14)
         while True:
             # Get the raw json string for the batch.
             times = []
@@ -2367,11 +2368,11 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
             pass
             print('main', self.times[idx] % 1, self.names[idx], '-', self.names[idx + 1], ': ', (self.times[idx + 1] - self.times[idx]) * 1000)
         print()
+        self.times = []
+        self.names = []
         self.names.append('b4 get worker result')
         self.times.append(time.time())
         result = self.get_worker_result()
-        self.times = []
-        self.names = []
         self.names.append('b4 get json batch')
         self.times.append(time.time())
         # Give out a batch
