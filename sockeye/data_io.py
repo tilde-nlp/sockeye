@@ -2143,6 +2143,8 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
             names.append('b4 bad index removal')
             times.append(time.time())
             if len(bad_indexes) > 0:
+                print('Dafuq, we actually have bad indexes?')
+                halt()
                 # Throw out the bad data.
                 sources_good = []
                 targets_good = []
