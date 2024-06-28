@@ -2237,8 +2237,8 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
 
             for idx in range(len(times) - 1):
                 pass
-                #print('Worker ', times[idx] % 1, names[idx], '-', names[idx + 1], ': ', (times[idx + 1] - times[idx]) * 1000)
-            #print()
+                print('Worker ', times[idx] % 1, names[idx], '-', names[idx + 1], ': ', (times[idx + 1] - times[idx]) * 1000)
+            print()
 
     # Log errors if any arise.
     except Exception as e:
@@ -2360,8 +2360,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         self.times.append(time.time())
         for idx in range(len(self.times) - 1):
             pass
-            #print('main', self.times[idx] % 1, self.names[idx], '-', self.names[idx + 1], ': ', (self.times[idx + 1] - self.times[idx]) * 1000)
-        #print()
+            print('main', self.times[idx] % 1, self.names[idx], '-', self.names[idx + 1], ': ', (self.times[idx + 1] - self.times[idx]) * 1000)
+        print()
         self.times = []
         self.names = []
         self.names.append('b4 get json batch')
