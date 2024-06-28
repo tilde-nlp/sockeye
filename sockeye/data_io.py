@@ -2143,8 +2143,6 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
             names.append('b4 bad index removal')
             times.append(time.time())
             if len(bad_indexes) > 0:
-                print('Dafuq, we actually have bad indexes?')
-                halt()
                 # Throw out the bad data.
                 sources_good = []
                 targets_good = []
@@ -2193,6 +2191,9 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
                 alignment_matrices = [create_alignment_matrix(alignments, bucket_size, dense=True)
                                       for alignments in alignment_batch]
                 alignment_matrices = torch.stack(alignment_matrices, dim=0)
+                alignment_matrices = alignment_matrices.to_sparse_coo()
+                alignment_matrices.coalesce()
+                alignment_matrices = (alignment_matrices.indices(), alignment_matrices.values(), alignment_matrices.shape)
             else:
                 alignment_matrices = None
 
@@ -2377,6 +2378,12 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         self.times.append(time.time())
         self.send_worker_data(json_batch)
 
+        self.names.append('b4 convert am to dense')
+        self.times.append(time.time())
+        am = result[C.JSON_ALIGNMENT_MATRIX_KEY]
+        am = torch.sparse_coo_tensor(am[0], am[1], am[2])
+        am = am.to_dense()
+        result[C.JSON_ALIGNMENT_MATRIX_KEY] = am
         self.names.append('b4 create batch')
         self.times.append(time.time())
         # Take previous result.
