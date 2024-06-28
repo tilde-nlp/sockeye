@@ -2088,6 +2088,11 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
             names = []
             times.append(time.time())
             names.append('b4 receiving')
+            while True:
+                if pipe.poll(0.001):
+                    break
+                else:
+                    time.sleep(0.001)
             json_batch = pipe.recv()
             names.append('b4 json loads')
             times.append(time.time())
