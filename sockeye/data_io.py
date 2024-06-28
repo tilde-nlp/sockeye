@@ -2089,7 +2089,6 @@ def batch_processing_worker(pipe: multiprocessing.Pipe,
             times.append(time.time())
             names.append('b4 receiving')
             json_batch = pipe.recv()
-            time.sleep(0.14)
             names.append('b4 json loads')
             times.append(time.time())
             batch = json.loads(json_batch)
