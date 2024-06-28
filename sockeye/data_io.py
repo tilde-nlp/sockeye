@@ -2299,9 +2299,8 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         self.names = []
         self.times = []
         #Give out a batch to the worker already, so hopefully it's done by the time we actually need a batch.
-        for i in range(1):
-            json_batch = self.get_json_batch()
-            self.send_worker_data(json_batch)
+
+        self.first = False
 
     def __iter__(self):
         return self
@@ -2357,6 +2356,9 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         return True
 
     def next(self) -> 'Batch':
+        if not self.first:
+            json_batch = self.get_json_batch()
+            self.send_worker_data(json_batch)
         self.names.append('b4 get json batch')
         self.times.append(time.time())
         for idx in range(len(self.times) - 1):
