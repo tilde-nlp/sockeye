@@ -2359,6 +2359,7 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         if not self.first:
             json_batch = self.get_json_batch()
             self.send_worker_data(json_batch)
+            self.first = True
         self.names.append('b4 get json batch')
         self.times.append(time.time())
         for idx in range(len(self.times) - 1):
