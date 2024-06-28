@@ -2301,10 +2301,6 @@ class StdInParallelSampleIter(BaseParallelSampleIter):
         self.send_worker_data(json_batch)
         json_batch = self.get_json_batch()
         self.send_worker_data(json_batch)
-        json_batch = self.get_json_batch()
-        self.send_worker_data(json_batch)
-        json_batch = self.get_json_batch()
-        self.send_worker_data(json_batch)
 
     def __iter__(self):
         return self
