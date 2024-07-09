@@ -1,4 +1,121 @@
-# Sockeye
+
+# Zeķacs (A fork of awslabs/sockeye)
+
+<img src="sock.png" width="100px"/>
+
+
+Only differences between Sockeye and this fork are:
+
+- We added alignment matrix learning. (This works quite decently)
+- We added a janky way to read training data from stdin. (This scales baddly beyond a few GPUs)
+
+### Instructions on training models by using standard input/data streaming, for Tilde people.
+
+This section refers to proprietary scripts used by Tilde, so if you stumbled upon this repo by accident, just ignore this.
+
+#### Description of how one goes about training sockeye with data streaming.
+
+1. In order to run sockeye with data streaming you first have to get LetsMT mt-stream. 
+- To install mt-stream see the mt-stream repo.
+- From this point onwards I'll just assume you have the mt-stream environment in a conda environment called `mtstream_env`.
+2. Generate vocabularies for the source, target and source or target factors.
+```
+conda run -n mtstream_env --no-capute-output python path/to/mtstream/main.py\
+  --config ./example_config.yaml\
+  --database-name ./example_database_name\
+  --worker-count 8\
+  --output-format json |
+conda run -n mtstream_env --no-capture-output python path/to/mtstream/misc/MTStreamSockeyeVocabGen.py\
+  --output ./vocabs\
+  --share-vocab\
+  --sample-count 5000000\
+```
+A bit of explanation for the command above:
+- The command will generate a vocabulary for the source, target, and source and target factors, and put them in the `./vocabs` folder.
+  - The name of the source vocabulary file will be `vocab.src.0.json`.
+  - The names of source factor vocabulary files will be `vocab.src.1.json`, `vocab.src.2.json`,... for how-ever-many source factors you have.
+  - The naming convention for target and target factor vocabularies is the same except `src` is replaced with `trg`, e.g. `vocab.trg.0.json`
+- `conda run -n mtstream_env python path/to/mtstream/main.py` runs mtstream.
+   - The `--no-capute-output` flags just make it so that conda doesn't capture standard output.
+   - `--config ./example_config.yaml` Ask Toms Bergmanis about how example_config.yaml has to be structured.
+   - `--database-name ./example_database_name` - The first time MTStream is run it will generate a database file at this location.
+   - `--worker-count 8` - Amount of worker processes that will be launched by MTStream for generating data. (Feel free to change this)
+   - `--output-format json` - Makes MTStream output loose json. This is necessary for using it with Zeķacs.
+- `conda run -n mtstream_env python path/to/mtstream/misc/MTStreamSockeyeVocabGen.py` runs a script that generates vocabulary files that can be used by Sockeye.
+   - `--output ./vocabs` - Path to folder where MTStreamVocabGen.py will output the source, target and factor vocabulary files.
+   - For more details on other parameters run `misc/MTStreamSockeyeVocabGen.py --help`
+- Warning: I don't remember if the command actually halts when it's done, maybe it required a manual killing.
+3. Next you need to install sockeye:
+```
+git clone https://github.com/tilde-nlp/sockeye.git
+conda create -n sockeye_env python=3.8
+conda activate sockeye_env
+cd sockeye
+pip install -r requirements/requirements.txt
+pip install .
+```
+4. Now we can actually run the training. To train on a single GPU you can run:
+```
+conda run -n mtstream_env --no-capute-output python /path/to/mtstream/main.py\
+  --config ./example_config.yaml\
+  --database-name ./example_database_name\
+  --worker-count 8\
+  --output-format json |
+conda run -n mtstream_env --no-capture-output python /path/to/mtstream/misc/MTStreamSockeyeAdapter.py\
+  --nproc 1\
+  --max-seq-len 191\
+  --batch-size 9000 |
+conda run -n sockeye_env --no-capture-output python /path/to/sockeye/sockeye/train.py\
+  --stdin-input\
+  --batch-size 9000\
+  --max-seq-len 191:191\
+  --source-vocab ./vocabs/vocab.src.0.json\
+  --target-vocab ./vocabs/vocab.trg.0.json\
+  --source-factor-vocabs ./vocabs/vocabs.src.1.json ./vocabs/vocab.src.2.json ...<Add however many source factors you have>\
+  --target-factor-vocabs ./vocabs/vocabs.trg.1.json ./vocabs/vocab.trg.2.json ...<Add however many target factors you have>\
+  <Other sockeye args>
+```
+A bit of explanation about the commands above:
+
+- The command above:
+  - Runs MTStream. 
+  - Pipes the output to `MTStreamSockeyeAdapter.py`.
+  - `MTStreamSockeyeAdapter.py` buckets and batches data for sockeye. 
+  - Pipes the output to sockeye.
+  - Sockeye performs training.
+- The `--config ./example_config.yaml` passed to `mtstream/main.py` must be the same config as config used when creating vocabularies in step 2.
+- `--nproc 1` - Tells `MTStreamSockeyeAdapter.py` that sockeye is using only 1 GPU.
+- `--max-seq-len` has to have the same value for both `sockeye/sockeye/train` and `mtstream/misc/MTStreamSockeyeAdapter.py`.
+- `--batch-size` maximum size of padded batch in tokens.
+- Run `MTStreamSockeyeAdapter.py --help` for more details.
+- Sidenote, when using `--stdin-input` Sockeye currently supports only square buckets.
+5. To run sockeye with data streaming on multiple GPUs run:
+```
+conda run -n mtstream_env --no-capute-output python /path/to/mtstream/main.py\
+  --config ./example_config.yaml\
+  --database-name ./example_database_name\
+  --worker-count 8\
+  --output-format json |
+conda run -n mtstream_env --no-capture-output python /path/to/mtstream/misc/MTStreamSockeyeAdapter.py\
+  --nproc 4\
+  --max-seq-len 191\
+  --batch-size 9000 |
+conda run -n sockeye_env --no-capture-output python -m torch.distributed.run --no_python --nproc_per_node 4 python -m /path/to/sockeye/sockeye/train.py\
+  --dist\
+  --stdin-input\
+  --batch-size 9000\
+  --max-seq-len 191:191\
+  --source-vocab ./vocabs/vocab.src.0.json\
+  --target-vocab ./vocabs/vocab.trg.0.json\
+  --source-factor-vocabs ./vocabs/vocabs.src.1.json ./vocabs/vocab.src.2.json ...<Add however many source factors you have>\
+  --target-factor-vocabs ./vocabs/vocabs.trg.1.json ./vocabs/vocab.trg.2.json ...<Add however many target factors you have>\
+  <Other sockeye args>
+```
+A bit of explanation:
+
+- `nproc_per_node 4` - Number of GPUs used by Sockeye. Has to be the same value as `--nproc` passed to `MTStreamSockeyeAdapter.py`. 
+
+# Sockeye [From here downwards it's just the original readme from awslabs]
 
 [![PyPI version](https://badge.fury.io/py/sockeye.svg)](https://badge.fury.io/py/sockeye)
 [![GitHub license](https://img.shields.io/github/license/awslabs/sockeye.svg)](https://github.com/awslabs/sockeye/blob/main/LICENSE)
