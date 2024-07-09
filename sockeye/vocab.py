@@ -270,6 +270,7 @@ def load_or_create_vocab(data: Iterable[str], vocab_path: Optional[str], num_wor
     else:
         return vocab_from_json(vocab_path)
 
+
 def load_or_create_vocabs(shard_source_paths: Iterable[Iterable[str]],
                           shard_target_paths: Iterable[Iterable[str]],
                           source_vocab_paths: List[Optional[str]],
